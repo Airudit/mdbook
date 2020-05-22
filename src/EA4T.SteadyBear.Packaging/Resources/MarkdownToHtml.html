@@ -1,0 +1,69 @@
+﻿<!DOCTYPE html>
+<html lang="{{{Lang}}}" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta charset="utf-8" />
+<!-- {{{Info}}} -->
+<title>{{{PageTitle}}}</title>
+<style>
+    body { 
+        background: #3F3F3F; color: #cdcdcd; 
+        /*background: #f7f7f7; color: #303030;*/
+        font-family: 'Lucida Sans', 'Lucida Sans Regular', 'Lucida Grande', 'Lucida Sans Unicode', Geneva, Verdana, sans-serif;
+        margin: 0; padding:0;
+    }
+
+    a { color: #58B7D8; text-decoration: underline; }
+    a:link {  color: #58B7D8; text-decoration: underline; }
+    a:visited { color: #3897B8; text-decoration: underline; }
+    a:hover { color: #68C7E8; text-decoration: underline; }
+    a:active { color: #560DB3; }
+    p, ul, ol { margin: 0; padding: 0; margin-top: 10px; margin-bottom: 10px; line-height: 1.6em; }
+    ul, ol { padding: 0 0 0 1em; }
+    li { margin-left: 14px; }
+    ol > li { list-style-type: decimal; }
+    ol ol > li { list-style-type: lower-alpha; }
+    ol ol ol > li { list-style-type: lower-roman; }
+    ul > li { list-style-type: disc; } 
+    ul ul > li { list-style-type: circle; }
+    ul ul ul > li { list-style-type: square; }
+    ul.no-ul > li { list-style-type: none; margin-left: 0; }
+    header, footer, nav, section { display: block; }
+    h1, h2, h3, h4, h5, h6 { margin: 0; padding: 0; font-size: 1.5em; }
+    h1 { font-size: 2em; padding-bottom: 0; margin-bottom: 0; }
+    h2 { padding: 10px 0 10px 0; }
+    h3 { font-size: 1.4em; }
+    h4 { font-size: 1.2em; }
+    h5 { font-size: 1.1em; }
+    h6 { font-size: 1em; } 
+    pre, code { font-family: Consolas, Courier New, Courier, monospace; }
+    
+    article { margin:0; padding: 10px 20px; }
+    header, footer { margin:0; padding: 10px 20px; background: #2D2D2D; }
+    .HelpCenter { background: #3F3F3F; }
+    .HelpCenterContent { margin:0 auto 0 auto; max-width: 80em; background: #3F3F3F; border: solid #303030 ; border-width: 0 1px; }
+
+    .HelpCenterContent { padding: 10px; font-size: 90%; padding-bottom: 100px; }
+    .HelpCenterContent article { padding: 0; }
+    .HelpCenterContent img { border: #FEFEFE 0px solid; border-style: inset; margin: .5em; box-shadow: 0px 0px 5px 6px #202020; max-width: 96%; }
+    .HelpCenterContent blockquote { background: #c9d3d8; margin: 0; padding: 0.2em 1em; }
+    .HelpCenterContent blockquote p { margin: 0; padding: 0; }
+    .HelpCenterContent li > blockquote { margin: 0.2em 0; padding: 0.1em 1em; }
+</style>
+</head>
+<body class="HelpCenter">
+    <header>
+        <h1>{{{PageTitle}}}</h1>
+    </header>
+    <div class="HelpCenter">
+        <div class="HelpCenterContent">
+            <article>
+{{{Contents}}}
+            </article>
+        </div>
+    </div>
+    <footer>
+        <p>{{{Info}}}</p>
+        <p>© Airudit (EA4T), tous droits réservés</p>
+    </footer>
+</body>
+</html>
