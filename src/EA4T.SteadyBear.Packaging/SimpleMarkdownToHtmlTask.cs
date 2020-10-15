@@ -148,7 +148,7 @@ namespace EA4T.SteadyBear.Packager
                 }
                 else if ("Info".Equals(key, StringComparison.Ordinal))
                 {
-                    return WebUtility.HtmlEncode(string.Format(CultureInfo.InvariantCulture, "Documented generated from file \"{0}\" on {1:o} using MarkdownToHtmlTask. Manual modifications will be lost next time this file is generated again. ", fileName, DateTime.UtcNow));
+                    return WebUtility.HtmlEncode(string.Format(CultureInfo.InvariantCulture, "This document was generated from file \"{0}\" on {1:o} using the MarkdownToHtmlTask. Manual modifications will be lost next time this file is generated again. ", fileName, DateTime.UtcNow));
                 }
                 else
                 {
