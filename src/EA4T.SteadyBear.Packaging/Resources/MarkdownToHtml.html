@@ -6,7 +6,7 @@
 <title>{{{PageTitle}}}</title>
 <style>
     body { 
-        background: #3F3F3F; color: #cdcdcd; 
+        background: #3F3F3F; color: #ededed; 
         /*background: #f7f7f7; color: #303030;*/
         font-family: 'Lucida Sans', 'Lucida Sans Regular', 'Lucida Grande', 'Lucida Sans Unicode', Geneva, Verdana, sans-serif;
         margin: 0; padding:0;
@@ -28,24 +28,27 @@
     ul ul ul > li { list-style-type: square; }
     ul.no-ul > li { list-style-type: none; margin-left: 0; }
     header, footer, nav, section { display: block; }
-    h1, h2, h3, h4, h5, h6 { margin: 0; padding: 0; font-size: 1.5em; }
-    h1 { font-size: 2em; padding-bottom: 0; margin-bottom: 0; }
-    h2 { padding: 10px 0 10px 0; }
-    h3 { font-size: 1.4em; }
-    h4 { font-size: 1.2em; }
-    h5 { font-size: 1.1em; }
-    h6 { font-size: 1em; } 
+    h1, h2, h3, h4, h5, h6 { margin: 0; padding: 0; font-size: 1.5em; color: #e60f47; }
+    h1 { padding: 60px 0 0 0; font-size: 2.2em; padding-bottom: 0; margin-bottom: 0; }
+    h2 { padding: 60px 0 5px 0; font-size: 1.5em; border-bottom: 1px solid #e60f47; margin-bottom: 20px; }
+    h3 { padding: 40px 0 5px 0; font-size: 1.4em; border-bottom: 1px dashed #e60f47; margin-bottom: 20px; }
+    h4 { padding: 20px 0 10px 0; font-size: 1.2em; }
+    h5 { padding: 20px 0 10px 0; font-size: 1.1em; }
+    h6 { padding: 20px 0 10px 0; font-size: 1em; } 
     pre, code { font-family: Consolas, Courier New, Courier, monospace; }
+    pre { margin: 1.5em 2em; color: #ffff8f; }
     
     article { margin:0; padding: 10px 20px; }
     header, footer { margin:0; padding: 10px 20px; background: #2D2D2D; }
+    header .contents { margin:0 auto 0 auto; max-width: 72em;  }
+    header h1 { padding: 0; }
     footer { font-size: .7em; }
-    .HelpCenter { background: #3F3F3F; }
-    .HelpCenterContent { margin:0 auto 0 auto; max-width: 80em; background: #3F3F3F; border: solid #303030 ; border-width: 0 1px; }
+    .HelpCenter { background: #353e40; }
+    .HelpCenterContent { margin:0 auto 0 auto; max-width: 80em; background: #353e40; border: solid #303030 ; border-width: 0 1px; }
 
-    .HelpCenterContent { padding: 10px; font-size: 90%; padding-bottom: 100px; }
+    .HelpCenterContent { padding: 10px; font-size: 90%; padding-bottom: 200px; }
     .HelpCenterContent article { padding: 0; }
-    .HelpCenterContent img { border: #FEFEFE 0px solid; border-style: inset; margin: .5em; box-shadow: 0px 0px 5px 6px #202020; max-width: 96%; }
+    .HelpCenterContent p > img { border: #FEFEFE 0px solid; border-style: inset; margin: .5em; box-shadow: 0px 0px 5px 6px #202020; max-width: 96%; }
     .HelpCenterContent blockquote { background: #c9d3d8; margin: 0; padding: 0.2em 1em; }
     .HelpCenterContent blockquote p { margin: 0; padding: 0; }
     .HelpCenterContent li > blockquote { margin: 0.2em 0; padding: 0.1em 1em; }
@@ -53,7 +56,9 @@
 </head>
 <body class="HelpCenter">
     <header>
-        <h1>{{{PageTitle}}}</h1>
+        <div class="contents">
+            <h1>{{{PageTitle}}}</h1>
+        </div>
     </header>
     <div class="HelpCenter">
         <div class="HelpCenterContent">
