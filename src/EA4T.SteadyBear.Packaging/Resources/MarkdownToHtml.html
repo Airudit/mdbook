@@ -38,12 +38,13 @@
     pre, code { font-family: Consolas, Courier New, Courier, monospace; }
     pre { margin: 1.5em 2em; color: #ffff8f; }
     
-    article { margin:0; padding: 10px 20px; }
-    header, footer { margin:0; padding: 10px 20px; background: #2D2D2D; }
-    header .contents { margin:0 auto 0 auto; max-width: 72em;  }
-    header h1 { padding: 0; }
-    footer { font-size: .7em; }
-    .HelpCenter { background: #353e40; }
+    article            { margin:0; padding: 10px 20px; }
+    header, footer     { margin:0; padding: 10px 20px; background: #2D2D2D; }
+    header > .contents, 
+    footer > .contents { margin: 0 auto 0 auto; max-width: 72em; }
+    header h1          { padding: 0; }
+    footer p           { font-size: .7em; color: #c1c1c1; }
+    .HelpCenter        { background: #353e40; }
     .HelpCenterContent { margin:0 auto 0 auto; max-width: 80em; background: #353e40; border: solid #303030 ; border-width: 0 1px; }
 
     .HelpCenterContent { padding: 10px; font-size: 90%; padding-bottom: 200px; }
@@ -68,8 +69,10 @@
         </div>
     </div>
     <footer>
-        <p>{{{Info}}}</p>
-        <p>© Airudit (EA4T), tous droits réservés</p>
+        <div class="contents">
+            <p>{{{Info}}}</p>
+            <p>© Airudit (EA4T), tous droits réservés</p>
+        </div>
     </footer>
 </body>
 </html>
