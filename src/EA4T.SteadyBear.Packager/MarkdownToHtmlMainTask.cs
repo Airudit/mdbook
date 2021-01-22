@@ -74,17 +74,17 @@ namespace EA4T.SteadyBear.Packager
             // fill layer with files
             var layer = new SimpleMarkdownToHtmlLayer();
             context.AddLayer(layer);
+
+            // recursive inventory of files from given folders
+            foreach (var dir in directories)
+            {
+                this.ExpandDirectoryToFiles(dir, files);
+            }
+
+            // extra CLI file paths
             foreach (var item in files)
             {
                 layer.AddFile(item);
-            }
-
-            foreach (var dir in directories)
-            {
-                foreach (var file in dir.GetFiles("*.md", SearchOption.TopDirectoryOnly))
-                {
-                    layer.AddFile(file);
-                }
             }
 
             base.Visit(context);
@@ -114,6 +114,21 @@ namespace EA4T.SteadyBear.Packager
                 interactor.Out.WriteLine(string.Empty);
                 interactor.WriteTaskError(this, "Not running. ");
                 interactor.Out.WriteLine(string.Empty);
+            }
+        }
+
+        private void ExpandDirectoryToFiles(DirectoryInfo directory, IList<FileInfo> files)
+        {
+            // files
+            foreach (var file in directory.GetFiles("*.md", SearchOption.TopDirectoryOnly))
+            {
+                files.Add(file);
+            }
+
+            // child directories
+            foreach (var dir in directory.GetDirectories())
+            {
+                this.ExpandDirectoryToFiles(dir, files);
             }
         }
     }

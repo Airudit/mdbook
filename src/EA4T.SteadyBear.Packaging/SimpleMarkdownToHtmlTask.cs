@@ -4,6 +4,9 @@ namespace EA4T.SteadyBear.Packager
     using EA4T.SteadyBear.PackageInstall;
     using EA4T.SteadyBear.Packager.Internals;
     using Markdig;
+    using Markdig.Renderers;
+    using Markdig.Syntax;
+    using Markdig.Parsers;
     using System;
     using System.Globalization;
     using System.IO;
@@ -11,6 +14,7 @@ namespace EA4T.SteadyBear.Packager
     using System.Net;
     using System.Text;
     using System.Text.RegularExpressions;
+    using Markdig.Syntax.Inlines;
 
     /// <summary>
     /// Converts some markdown files to HTML.
@@ -48,7 +52,9 @@ namespace EA4T.SteadyBear.Packager
 
             // prepare pipeline
             this.layer.Pipeline = new MarkdownPipelineBuilder()
-                .UseAdvancedExtensions()
+                .UseAutoIdentifiers()
+                .UseAutoLinks()
+                .UsePipeTables()
                 .Build();
 
             // prepare template
@@ -117,11 +123,19 @@ namespace EA4T.SteadyBear.Packager
                 text = reader.ReadToEnd();
             }
 
-            // TODO: change markdown hyperlinks from md to md.html (X.md => x.md.html)
-            ;
+            // change markdown hyperlinks from md to md.html (X.md => x.md.html)
+            // TODO: to consider: only change local .md links if these are to be rendered?
+            var dom = Markdown.Parse(text, this.layer.Pipeline);
+            this.EnhanceDom(dom);
 
             // generate HTML
-            var contents = Markdown.ToHtml(text, this.layer.Pipeline);
+            string htmlContents;
+            {
+                var writer = new StringWriter();
+                var renderer = new HtmlRenderer(writer);
+                renderer.Render(dom);
+                htmlContents = writer.ToString();
+            }
 
             // substitute HTML template variables
             // don't forget to HTML-escape strings!
@@ -140,7 +154,7 @@ namespace EA4T.SteadyBear.Packager
                 }
                 else if ("Contents".Equals(key, StringComparison.Ordinal))
                 {
-                    return contents; // not escaped
+                    return htmlContents; // not escaped
                 }
                 else if ("Lang".Equals(key, StringComparison.Ordinal))
                 {
@@ -186,6 +200,62 @@ namespace EA4T.SteadyBear.Packager
             }
 
             return path;
+        }
+
+        private void EnhanceDom(ContainerBlock root)
+        {
+            foreach (var item in root)
+            {
+                if (item is ContainerBlock containerBlock)
+                {
+                    this.EnhanceDom(containerBlock);
+                }
+                else if (item is ParagraphBlock paragraph)
+                {
+                    this.EnhanceDom(paragraph);
+                }
+                else if (item is Block block)
+                {
+                    this.EnhanceDom(block);
+                }
+            }
+        }
+
+        private void EnhanceDom(Block block)
+        {
+        }
+
+        private void EnhanceDom(ParagraphBlock paragraph)
+        {
+            foreach (var item in paragraph.Inline)
+            {
+                if (item is LinkInline link)
+                {
+                    if (link.IsImage)
+                    {
+                    }
+                    else
+                    {
+                    }
+
+                    if (link.Url != null && Uri.TryCreate(link.Url, UriKind.RelativeOrAbsolute, out Uri uri))
+                    {
+                        if (uri.IsAbsoluteUri)
+                        {
+                        }
+                        else
+                        {
+                            var path = link.Url;
+                            if (path.EndsWith(".md", StringComparison.OrdinalIgnoreCase))
+                            {
+                                path = path + ".html";
+                            }
+
+                            link.Url = path;
+                        }
+                    }
+                }
+            }
         }
     }
 }
