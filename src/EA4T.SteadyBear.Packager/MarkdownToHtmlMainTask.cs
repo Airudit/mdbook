@@ -8,7 +8,7 @@ namespace EA4T.SteadyBear.Packager
     using System.Linq;
 
     /// <summary>
-    /// Command to convert some markdown files to HTML (no packaging involved).
+    /// Main command. Command to convert some markdown files to HTML (no packaging involved).
     /// </summary>
     public sealed class MarkdownToHtmlMainTask : OrdererTask
     {
