@@ -127,6 +127,58 @@ namespace EA4T.SteadyBear.Packager
                 text = reader.ReadToEnd();
             }
 
+            // include markdown parts
+            var includeRegex = new Regex(@"\{\{(include: *)([/a-zA-Z0-9 ()+='"",.?_-]+)\}\}", RegexOptions.None);
+            text = includeRegex.Replace(text, new MatchEvaluator(m =>
+            {
+                var origValue = m.Value;
+                var value = origValue;
+                var contents = new StringBuilder();
+
+                var command = m.Groups[1].Value;
+                if (command.StartsWith("include:", StringComparison.Ordinal))
+                {
+                    var path = m.Groups[2].Value;
+                    if (!string.IsNullOrEmpty(path))
+                    {
+                        if (path.Length >= 1 && path[0] == '/')
+                        {
+                            path = path.Substring(1);
+                        }
+
+                        var fullPath = Path.Combine(item.SourceFile.DirectoryName, path);
+                        var doc = new FileInfo(fullPath);
+                        if (!doc.Exists)
+                        {
+                            contents.Append(@"<!-- " + origValue + ": NO SUCH FILE -->");
+                        }
+                        else if (path.EndsWith(".md"))
+                        {
+                            try
+                            {
+                                contents.Append(@"\n<!-- " + origValue + ": INCLUDE BEGINS -->\n");
+                                contents.Append(System.IO.File.ReadAllText(doc.FullName, Encoding.UTF8));
+                                contents.Append(@"\n<!-- " + origValue + ": INCLUDE ENDS   -->\n");
+                            }
+                            catch (UnauthorizedAccessException ex)
+                            {
+                                contents.Append(@"<!-- " + origValue + ": " + ex.Message + " -->");
+                            }
+                        }
+                        else
+                        {
+                            contents.Append(value = @"<!-- " + origValue + ": INVALID FILE EXTENSION -->");
+                        }
+                    }
+                }
+                else
+                {
+                    contents.Append(value);
+                }
+
+                return contents.ToString();
+            }));
+
             // change markdown hyperlinks from md to md.html (X.md => x.md.html)
             // TODO: to consider: only change local .md links if these are to be rendered?
             var dom = Markdown.Parse(text, this.layer.Pipeline);
