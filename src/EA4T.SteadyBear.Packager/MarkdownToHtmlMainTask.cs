@@ -8,10 +8,12 @@ namespace EA4T.SteadyBear.Packager
     using System.Linq;
 
     /// <summary>
-    /// Command to convert some markdown files to HTML (no packaging involved).
+    /// Main command. Command to convert some markdown files to HTML (no packaging involved).
     /// </summary>
     public sealed class MarkdownToHtmlMainTask : OrdererTask
     {
+        private const string MarkdownLayerKey = "MarkdownToHtml";
+
         public MarkdownToHtmlMainTask()
             : base(nameof(MarkdownToHtmlMainTask))
         {
@@ -23,6 +25,10 @@ namespace EA4T.SteadyBear.Packager
         {
             var interactor = context.RequireSingleLayer<Interactor>();
 
+            var layer = new SimpleMarkdownToHtmlLayer();
+            layer.Key = MarkdownLayerKey;
+            context.AddLayer(layer);
+
             // parse console arguments
             var isHelp = false;
             var files = new List<FileInfo>();
@@ -33,6 +39,21 @@ namespace EA4T.SteadyBear.Packager
                 {
                     isHelp = true;
                     a.ConsumeOne();
+                }
+                else if ("--export".Equals(a.Current, StringComparison.OrdinalIgnoreCase))
+                {
+                    a.ConsumeOne();
+                    if (!string.IsNullOrEmpty(a.Next))
+                    {
+                        var export = new SimpleMarkdownToHtmlLayerExport();
+                        export.Directory = new DirectoryInfo(a.Next);
+                        layer.Exports.Add(export);
+                        a.ConsumeOne();
+                    }
+                    else
+                    {
+                        interactor.WriteTaskError(this, "Argument --Export must be followed by a directory path. ");
+                    }
                 }
                 else
                 {
@@ -64,6 +85,7 @@ namespace EA4T.SteadyBear.Packager
                 interactor.Out.WriteLine("    {file path}+ [options]");
                 interactor.Out.WriteLine("");
                 interactor.Out.WriteLine("Options: ");
+                interactor.Out.WriteLine("    --Export <dir>     Exports the generated documentation to this directory");
                 interactor.Out.WriteLine("");
                 Environment.Exit(1);
             }
@@ -71,20 +93,42 @@ namespace EA4T.SteadyBear.Packager
             {
             }
 
-            // fill layer with files
-            var layer = new SimpleMarkdownToHtmlLayer();
-            context.AddLayer(layer);
-            foreach (var item in files)
+            // verify exports
+            for (int e = 0; e < layer.Exports.Count; e++)
             {
-                layer.AddFile(item);
+                var export = layer.Exports[e];
+                bool directoryMayExist = false;
+                var dir = export.Directory;
+                while (dir != null && !dir.Equals(dir.Parent))
+                {
+                    if (dir.Exists)
+                    {
+                        directoryMayExist = true;
+                        break;
+                    }
+
+                    dir = dir.Parent;
+                }
+
+                if (!directoryMayExist)
+                {
+                    interactor.WriteTaskError(this, "Cannot find part of the export directory \"" + export.Directory + "\". ");
+                }
             }
 
+            // fill layer with files
+            // recursive inventory of files from given folders
             foreach (var dir in directories)
             {
-                foreach (var file in dir.GetFiles("*.md", SearchOption.TopDirectoryOnly))
-                {
-                    layer.AddFile(file);
-                }
+                var root1 = new string[] { dir.Name, };
+                this.ExpandDirectoryToFiles(dir, layer, root1);
+            }
+
+            // extra CLI file paths
+            foreach (var file in files)
+            {
+                var item = layer.AddFile(file, true);
+                item.RelativePath = new string[] { file.Name, };
             }
 
             base.Visit(context);
@@ -94,7 +138,8 @@ namespace EA4T.SteadyBear.Packager
         {
             var interactor = context.RequireSingleLayer<Interactor>();
 
-            this.layer.Tasks.Add(new SimpleMarkdownToHtmlTask());
+            this.layer.Tasks.Add(new SimpleMarkdownToHtmlTask(MarkdownLayerKey));
+            this.layer.Tasks.Add(new ExportMarkdownToHtmlTask("ExportMarkdownToHtml", MarkdownLayerKey));
         }
 
         public override void Verify(PackageContext context)
@@ -114,6 +159,23 @@ namespace EA4T.SteadyBear.Packager
                 interactor.Out.WriteLine(string.Empty);
                 interactor.WriteTaskError(this, "Not running. ");
                 interactor.Out.WriteLine(string.Empty);
+            }
+        }
+
+        private void ExpandDirectoryToFiles(DirectoryInfo directory, SimpleMarkdownToHtmlLayer layer, string[] path)
+        {
+            // files
+            foreach (var file in directory.GetFiles("*.md", SearchOption.TopDirectoryOnly))
+            {
+                var item = layer.AddFile(file, true);
+                item.IsMarkdown = true;
+                item.RelativePath = SimpleMarkdownToHtmlTask.GetRelativePath(path, file.Name);
+            }
+
+            // child directories
+            foreach (var dir in directory.GetDirectories())
+            {
+                this.ExpandDirectoryToFiles(dir, layer, SimpleMarkdownToHtmlTask.GetRelativePath(path, dir.Name));
             }
         }
     }

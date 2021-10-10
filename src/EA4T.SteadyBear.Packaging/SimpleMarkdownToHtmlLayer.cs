@@ -12,22 +12,46 @@ namespace EA4T.SteadyBear.Packager
         {
         }
 
+        /// <summary>
+        /// The task's key.
+        /// </summary>
+        public string Key { get; set; }
+
         public MarkdownPipeline Pipeline { get; internal set; }
 
         public string Template { get; internal set; }
 
+        /// <summary>
+        /// Files processed.
+        /// </summary>
         public List<SimpleMarkdownToHtmlLayerItem> Items { get; } = new List<SimpleMarkdownToHtmlLayerItem>();
 
-        public void AddFile(FileInfo sourceFile)
+        /// <summary>
+        /// Export orders.
+        /// </summary>
+        public List<SimpleMarkdownToHtmlLayerExport> Exports { get; set; } = new List<SimpleMarkdownToHtmlLayerExport>();
+
+        public SimpleMarkdownToHtmlLayerItem AddFile(FileInfo sourceFile, bool isMarkdown)
         {
             if (sourceFile == null)
                 throw new ArgumentNullException("sourceFile");
 
             var item = new SimpleMarkdownToHtmlLayerItem();
             item.SourceFile = sourceFile;
-            item.TargetFile = new FileInfo(sourceFile.FullName + ".html");
+
+            if (isMarkdown)
+            {
+                item.TargetFile = new FileInfo(sourceFile.FullName + ".html");
+            }
+            else
+            {
+                item.TargetFile = new FileInfo(sourceFile.FullName);
+            }
+
             this.Items.Add(item);
+            return item;
         }
+
     }
 
     public sealed class SimpleMarkdownToHtmlLayerItem
@@ -35,5 +59,12 @@ namespace EA4T.SteadyBear.Packager
         public FileInfo SourceFile { get; internal set; }
 
         public FileInfo TargetFile { get; internal set; }
+        public string[] RelativePath { get; set; }
+        public bool IsMarkdown { get; set; }
+    }
+
+    public sealed class SimpleMarkdownToHtmlLayerExport
+    {
+        public DirectoryInfo Directory { get; set; }
     }
 }
