@@ -23,6 +23,7 @@ namespace EA4T.SteadyBear.Packager
     {
         private static readonly JsonHelper json = new JsonHelper(string.Empty);
         private static readonly Regex replacer = new Regex(@"\{\{\{([^}]+)\}\}\}", RegexOptions.Compiled);
+        private static readonly Regex linksRegex = new Regex(@"<a href=""([^""]+)"">", RegexOptions.Compiled);
         private static readonly char[] directorySeparators = new char[] { '/', '\\', };
         private readonly string key;
         private bool defaultMainSource;
@@ -121,8 +122,8 @@ namespace EA4T.SteadyBear.Packager
 
             // read markdown file
             string text;
-            using (var soureceStream = new FileStream(item.SourceFile.FullName, FileMode.Open, FileAccess.Read, FileShare.Read))
-            using (var reader = new StreamReader(soureceStream, Encoding.UTF8))
+            using (var sourceStream = new FileStream(item.SourceFile.FullName, FileMode.Open, FileAccess.Read, FileShare.Read))
+            using (var reader = new StreamReader(sourceStream, Encoding.UTF8))
             {
                 text = reader.ReadToEnd();
             }
@@ -193,6 +194,19 @@ namespace EA4T.SteadyBear.Packager
                 htmlContents = writer.ToString();
             }
 
+            // add a class="external" to external links <a href="http://...">
+            htmlContents = linksRegex.Replace(htmlContents, new MatchEvaluator(match =>
+            {
+                var contents = match.Value;
+                var url = match.Groups[1].Value;
+                if (url.StartsWith("http://", StringComparison.OrdinalIgnoreCase) || url.StartsWith("https://", StringComparison.OrdinalIgnoreCase) || url.StartsWith("ftp://", StringComparison.OrdinalIgnoreCase))
+                {
+                    contents = "<a class=\"external\" href=\"" + url + "\">";
+                }
+
+                return contents;
+            }));
+
             // substitute HTML template variables
             // don't forget to HTML-escape strings!
             // known variables are: 
@@ -226,7 +240,7 @@ namespace EA4T.SteadyBear.Packager
                 }
             }));
 
-            // write HTMl file
+            // write HTML file
             using (var targetStream = new FileStream(item.TargetFile.FullName, FileMode.Create, FileAccess.Write, FileShare.None))
             {
                 using (var writer = new StreamWriter(targetStream, Encoding.UTF8))

@@ -5,8 +5,9 @@
 <!-- {{{Info}}} -->
 <title>{{{PageTitle}}}</title>
 <style>
+    /* Stylesheet optimized for screen reading and print. Edit with care. */
     body { 
-        background: #3F3F3F; color: #ededed; 
+        background: #2c3032; color: #ededed; 
         /*background: #f7f7f7; color: #303030;*/
         font-family: 'Lucida Sans', 'Lucida Sans Regular', 'Lucida Grande', 'Lucida Sans Unicode', Geneva, Verdana, sans-serif;
         margin: 0; padding:0;
@@ -17,6 +18,7 @@
     a:visited { color: #3897B8; text-decoration: underline; }
     a:hover { color: #68C7E8; text-decoration: underline; }
     a:active { color: #560DB3; }
+    a.external:after { content: "\1f86d"; color: #ededed; }
     p, ul, ol { margin: 0; padding: 0; margin-top: 10px; margin-bottom: 10px; line-height: 1.6em; }
     ul, ol { padding: 0 0 0 1em; }
     li { margin-left: 14px; }
@@ -29,23 +31,25 @@
     ul.no-ul > li { list-style-type: none; margin-left: 0; }
     header, footer, nav, section { display: block; }
     h1, h2, h3, h4, h5, h6 { margin: 0; padding: 0; font-size: 1.5em; color: #e60f47; }
-    h1 { padding: 60px 0 0 0; font-size: 2.2em; padding-bottom: 0; margin-bottom: 0; }
-    h2 { padding: 60px 0 5px 0; font-size: 1.5em; border-bottom: 1px solid #e60f47; margin-bottom: 20px; }
-    h3 { padding: 40px 0 5px 0; font-size: 1.4em; border-bottom: 1px dashed #e60f47; margin-bottom: 20px; }
+    h1 { padding: 60px 0 0    0; font-size: 2.2em; padding-bottom: 0; margin-bottom: 0; }
+    h2 { padding: 60px 0 5px  0; font-size: 1.5em; border-bottom: 1px solid #e60f47; margin-bottom: 20px; }
+    h3 { padding: 40px 0 5px  0; font-size: 1.4em; border-bottom: 1px dashed #e60f47; margin-bottom: 20px; }
     h4 { padding: 20px 0 10px 0; font-size: 1.2em; }
     h5 { padding: 20px 0 10px 0; font-size: 1.1em; }
     h6 { padding: 20px 0 10px 0; font-size: 1em; } 
     pre, code { font-family: Consolas, Courier New, Courier, monospace; color: #ffff8f; }
     pre { margin: 1.5em 2em; color: #ffff8f; }
-    
+
     article            { margin:0; padding: 10px 20px; }
     header, footer     { margin:0; padding: 10px 20px; background: #2D2D2D; }
     header > .contents, 
     footer > .contents { margin: 0 auto 0 auto; max-width: 72em; }
     header h1          { padding: 0; }
-    footer p           { font-size: .7em; color: #c1c1c1; }
+    footer p           { font-size: .666em; color: #c1c1c1; }
+    footer p.info      { font-size: .666em; }
+    footer p.copyright { font-size: .8em; }
     .HelpCenter        { background: #353e40; }
-    .HelpCenterContent { margin:0 auto 0 auto; max-width: 80em; background: #353e40; border: solid #303030 ; border-width: 0 1px; }
+    .HelpCenterContent { margin:0 auto 0 auto; max-width: 80em; background: #2c3032; border: solid #3D3D3D ; border-width: 0 1px; }
 
     .HelpCenterContent { padding: 10px; font-size: 90%; padding-bottom: 200px; }
     .HelpCenterContent article { padding: 0; }
@@ -69,8 +73,10 @@
         </div>
     </div>
     <footer>
-        <div class="contents">
-            <p>{{{Info}}}</p>
+        <div class="contents info">
+            <p>{{{Info}}} This document is printable; but think before printing. Adjust print settings (duplex, ink economy) to reduce paper and ink consumption. </p>
+        </div>
+        <div class="contents copyright">
             <p>© Airudit (EA4T), tous droits réservés</p>
         </div>
     </footer>
