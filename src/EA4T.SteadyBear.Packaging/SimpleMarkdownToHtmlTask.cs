@@ -25,7 +25,6 @@ namespace EA4T.SteadyBear.Packager
         private static readonly Regex replacer = new Regex(@"\{\{\{([^}]+)\}\}\}", RegexOptions.Compiled);
         private static readonly Regex linksRegex = new Regex(@"<a href=""([^""]+)"">", RegexOptions.Compiled);
         private static readonly char[] directorySeparators = new char[] { '/', '\\', };
-        private readonly string key;
         private bool defaultMainSource;
         private bool defaultCustomerSource;
         private string profile;
@@ -33,10 +32,12 @@ namespace EA4T.SteadyBear.Packager
 
         public SimpleMarkdownToHtmlTask(string key)
         {
-            this.key = key;
+            this.Key = key;
         }
 
         public string Name => nameof(SimpleMarkdownToHtmlTask);
+
+        public string Key { get; }
 
         public void Visit(PackageContext context)
         {
@@ -51,7 +52,7 @@ namespace EA4T.SteadyBear.Packager
             if (this.layer == null)
             {
                 this.layer = new SimpleMarkdownToHtmlLayer();
-                this.layer.Key = this.key;
+                this.layer.Key = this.Key;
                 context.AddLayer(layer);
             }
 
