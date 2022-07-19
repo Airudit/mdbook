@@ -31,8 +31,10 @@
     ul.no-ul > li { list-style-type: none; margin-left: 0; }
     header, footer, nav, section { display: block; }
     h1, h2, h3, h4, h5, h6 { margin: 0; padding: 0; font-size: 1.5em; color: #e60f47; }
-    h1 { padding: 60px 0 0    0; font-size: 2.2em; padding-bottom: 0; margin-bottom: 0; }
+    h1 { padding: 60px 0 0    0; font-size: 2.2em; margin-bottom: 0; }
+    @media print { h1 { padding: 40px 0 0    0; } }
     h2 { padding: 60px 0 5px  0; font-size: 1.5em; border-bottom: 1px solid #e60f47; margin-bottom: 20px; }
+    @media print { h2 { padding: 40px 0 5px  0; } }
     h3 { padding: 40px 0 5px  0; font-size: 1.4em; border-bottom: 1px dashed #e60f47; margin-bottom: 20px; }
     h4 { padding: 20px 0 10px 0; font-size: 1.2em; }
     h5 { padding: 20px 0 10px 0; font-size: 1.1em; }
@@ -44,18 +46,28 @@
     header, footer     { margin:0; padding: 10px 20px; background: #2D2D2D; }
     header > .contents, 
     footer > .contents { margin: 0 auto 0 auto; max-width: 72em; }
+    @media print {
+        header > .contents,
+        footer > .contents { margin: 0 auto 0 auto; max-width: unset; }
+    }
     header h1          { padding: 0; }
     footer p           { font-size: .666em; color: #c1c1c1; }
+    @media print { footer p { color: #c1c1c1; } }
     footer p.info      { font-size: .666em; }
     footer p.copyright { font-size: .8em; }
     .HelpCenter        { background: #353e40; }
     .HelpCenterContent { margin:0 auto 0 auto; max-width: 80em; background: #2c3032; border: solid #3D3D3D ; border-width: 0 1px; }
+    @media print {
+        .HelpCenterContent { max-width: unset; }
+    }
 
-    .HelpCenterContent { padding: 10px; font-size: 90%; padding-bottom: 200px; }
+    .HelpCenterContent { padding: 10px; font-size: 90%; }
+    @media screen { .HelpCenterContent { padding-bottom: 200px; } }
     .HelpCenterContent article { padding: 0; }
     .HelpCenterContent p > img { border: #FEFEFE 0px solid; border-style: inset; margin: .5em; box-shadow: 0px 0px 5px 6px #202020; max-width: 96%; }
-    .HelpCenterContent blockquote { background: #c9d3d8; margin: 0; padding: 0.2em 1em; }
-    .HelpCenterContent blockquote p { margin: 0; padding: 0; }
+    .HelpCenterContent blockquote { background: #42423a; margin:  1em auto; padding: 0.8em 1em; }
+    @media print { .HelpCenterContent blockquote { border-left: .3em solid #ededed; } }
+    .HelpCenterContent blockquote p { }
     .HelpCenterContent li > blockquote { margin: 0.2em 0; padding: 0.1em 1em; }
 </style>
 </head>
