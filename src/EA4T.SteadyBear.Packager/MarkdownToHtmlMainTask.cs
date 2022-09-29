@@ -138,8 +138,8 @@ namespace EA4T.SteadyBear.Packager
         {
             var interactor = context.RequireSingleLayer<Interactor>();
 
-            this.layer.Tasks.Add(new SimpleMarkdownToHtmlTask(MarkdownLayerKey));
-            this.layer.Tasks.Add(new ExportMarkdownToHtmlTask("ExportMarkdownToHtml", MarkdownLayerKey));
+            this.OrdererTaskLayer.Tasks.Add(new SimpleMarkdownToHtmlTask(MarkdownLayerKey));
+            this.OrdererTaskLayer.Tasks.Add(new ExportMarkdownToHtmlTask("ExportMarkdownToHtml", MarkdownLayerKey));
         }
 
         public override void Verify(PackageContext context)
