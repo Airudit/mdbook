@@ -302,30 +302,38 @@ namespace EA4T.SteadyBear.Packager
             {
                 if (item is LinkInline link)
                 {
-                    if (link.Url != null && Uri.TryCreate(link.Url, UriKind.RelativeOrAbsolute, out Uri uri))
+                    if (link.Url != null && Uri.IsWellFormedUriString(link.Url, UriKind.Absolute))
                     {
-                        if (uri.IsAbsoluteUri)
+                        // fully qualified URL do not need change
+                        continue;
+                    }
+
+                    Uri uri;
+                    if (link.Url != null && Uri.TryCreate(link.Url, UriKind.Relative, out uri))
+                    {
+                        if (Extensions.IsInvalidFileRelativePath(link.Url))
                         {
+                            // invalid relative path (see unit tests for IsInvalidFileRelativePath)
+                            // TODO: this will generate an invalid hyperlink. what should we do?
+                            continue;
+                        }
+
+                        var path = link.Url;
+                        if (path.EndsWith(".md", StringComparison.OrdinalIgnoreCase))
+                        {
+                            // local link to a markdown document: fix link url
+                            path = path + ".html";
                         }
                         else
                         {
-                            var path = link.Url;
-                            if (path.EndsWith(".md", StringComparison.OrdinalIgnoreCase))
-                            {
-                                // local link to a markdown document: fix link url
-                                path = path + ".html";
-                            }
-                            else
-                            {
-                                // local link to a non-markdown file
-                                // add it for export
-                                var linkFilePath = Path.Combine(context.SourceFile.DirectoryName, link.Url);
-                                var resource = this.layer.AddFile(new FileInfo(linkFilePath), false);
-                                resource.RelativePath = GetRelativePath(context.RelativePath.Take(context.RelativePath.Length - 1).ToArray(), link.Url);
-                            }
-
-                            link.Url = path;
+                            // local link to a non-markdown file
+                            // add it for export
+                            var linkFilePath = Path.Combine(context.SourceFile.DirectoryName, link.Url);
+                            var resource = this.layer.AddFile(new FileInfo(linkFilePath), false);
+                            resource.RelativePath = GetRelativePath(context.RelativePath.Take(context.RelativePath.Length - 1).ToArray(), link.Url);
                         }
+
+                        link.Url = path;
                     }
                 }
             }
