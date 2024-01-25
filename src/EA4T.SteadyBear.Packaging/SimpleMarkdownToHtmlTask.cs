@@ -152,24 +152,24 @@ namespace EA4T.SteadyBear.Packager
                         var doc = new FileInfo(fullPath);
                         if (!doc.Exists)
                         {
-                            contents.Append(@"<!-- " + origValue + ": NO SUCH FILE -->");
+                            contents.Append("\n<!-- " + origValue + ": NO SUCH FILE -->\n");
                         }
                         else if (path.EndsWith(".md"))
                         {
                             try
                             {
-                                contents.Append(@"\n<!-- " + origValue + ": INCLUDE BEGINS -->\n");
+                                contents.Append("\n<!-- " + origValue + ": INCLUDE BEGINS -->\n");
                                 contents.Append(System.IO.File.ReadAllText(doc.FullName, Encoding.UTF8));
-                                contents.Append(@"\n<!-- " + origValue + ": INCLUDE ENDS   -->\n");
+                                contents.Append("\n<!-- " + origValue + ": INCLUDE ENDS   -->\n");
                             }
                             catch (UnauthorizedAccessException ex)
                             {
-                                contents.Append(@"<!-- " + origValue + ": " + ex.Message + " -->");
+                                contents.Append("\n<!-- " + origValue + ": " + ex.Message + " -->\n");
                             }
                         }
                         else
                         {
-                            contents.Append(value = @"<!-- " + origValue + ": INVALID FILE EXTENSION -->");
+                            contents.Append(value = "\n<!-- " + origValue + ": INVALID FILE EXTENSION -->\n");
                         }
                     }
                 }
