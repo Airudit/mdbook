@@ -23,7 +23,7 @@ namespace EA4T.SteadyBear.Packager
 
         public override void Visit(PackageContext context)
         {
-            var interactor = context.RequireSingleLayer<Interactor>();
+            var interactor = context.RequireSingleLayer<IInteractor>();
 
             var layer = new SimpleMarkdownToHtmlLayer();
             layer.Key = MarkdownLayerKey;
@@ -136,7 +136,7 @@ namespace EA4T.SteadyBear.Packager
 
         protected override void Populate(PackageContext context)
         {
-            var interactor = context.RequireSingleLayer<Interactor>();
+            var interactor = context.RequireSingleLayer<IInteractor>();
 
             this.OrdererTaskLayer.Tasks.Add(new SimpleMarkdownToHtmlTask(MarkdownLayerKey));
             this.OrdererTaskLayer.Tasks.Add(new ExportMarkdownToHtmlTask("ExportMarkdownToHtml", MarkdownLayerKey));
@@ -155,7 +155,7 @@ namespace EA4T.SteadyBear.Packager
             }
             else
             {
-                var interactor = context.RequireSingleLayer<Interactor>();
+                var interactor = context.RequireSingleLayer<IInteractor>();
                 interactor.Out.WriteLine(string.Empty);
                 interactor.WriteTaskError(this, "Not running. ");
                 interactor.Out.WriteLine(string.Empty);

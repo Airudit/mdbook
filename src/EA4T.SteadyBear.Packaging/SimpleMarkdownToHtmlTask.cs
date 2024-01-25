@@ -25,8 +25,6 @@ namespace EA4T.SteadyBear.Packager
         private static readonly Regex replacer = new Regex(@"\{\{\{([^}]+)\}\}\}", RegexOptions.Compiled);
         private static readonly Regex linksRegex = new Regex(@"<a href=""([^""]+)"">", RegexOptions.Compiled);
         private static readonly char[] directorySeparators = new char[] { '/', '\\', };
-        private bool defaultMainSource;
-        private bool defaultCustomerSource;
         private string profile;
         private SimpleMarkdownToHtmlLayer layer;
 
@@ -41,12 +39,17 @@ namespace EA4T.SteadyBear.Packager
 
         public void Visit(PackageContext context)
         {
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+
             if (this.layer != null)
             {
                 throw new InvalidOperationException("Cannot run this task twice. ");
             }
 
-            var interactor = context.RequireSingleLayer<Interactor>();
+            var interactor = context.RequireSingleLayer<IInteractor>();
 
             this.layer = context.GetSingleLayer<SimpleMarkdownToHtmlLayer>();
             if (this.layer == null)
@@ -75,16 +78,26 @@ namespace EA4T.SteadyBear.Packager
 
         public void Verify(PackageContext context)
         {
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+
             var errors = 0;
-            var interactor = context.RequireSingleLayer<Interactor>();
+            var interactor = context.RequireSingleLayer<IInteractor>();
 
             context.Verified(this, errors == 0);
         }
 
         public void Run(PackageContext context)
         {
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+
             var errors = 0;
-            var interactor = context.RequireSingleLayer<Interactor>();
+            var interactor = context.RequireSingleLayer<IInteractor>();
 
             foreach (var item in this.layer.Items.ToArray()) // we need to change the collection while enumerating it
             {
@@ -96,7 +109,7 @@ namespace EA4T.SteadyBear.Packager
 
         private void ProcessFileMarkdown(PackageContext context, SimpleMarkdownToHtmlLayerItem item)
         {
-            var interactor = context.RequireSingleLayer<Interactor>();
+            var interactor = context.RequireSingleLayer<IInteractor>();
             interactor.WriteTaskInfo(this, "Processing markdown file \"" + item.SourceFile + "\". ");
 
             // prepare
@@ -154,7 +167,7 @@ namespace EA4T.SteadyBear.Packager
                         {
                             contents.Append("\n<!-- " + origValue + ": NO SUCH FILE -->\n");
                         }
-                        else if (path.EndsWith(".md"))
+                        else if (path.EndsWith(".md", StringComparison.OrdinalIgnoreCase))
                         {
                             try
                             {
@@ -298,6 +311,16 @@ namespace EA4T.SteadyBear.Packager
 
         private void EnhanceDom(SimpleMarkdownToHtmlLayerItem context, ParagraphBlock paragraph)
         {
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+
+            if (paragraph == null)
+            {
+                throw new ArgumentNullException(nameof(paragraph));
+            }
+
             foreach (var item in paragraph.Inline)
             {
                 if (item is LinkInline link)
@@ -341,12 +364,32 @@ namespace EA4T.SteadyBear.Packager
 
         public static string[] GetRelativePath(string[] left, string right)
         {
+            if (left == null)
+            {
+                throw new ArgumentNullException(nameof(left));
+            }
+
+            if (right == null)
+            {
+                throw new ArgumentNullException(nameof(right));
+            }
+
             var newPath = GetRelativePath(left, SplitPath(right));
             return newPath;
         }
 
         public static string[] GetRelativePath(string[] left, string[] right)
         {
+            if (left == null)
+            {
+                throw new ArgumentNullException(nameof(left));
+            }
+
+            if (right == null)
+            {
+                throw new ArgumentNullException(nameof(right));
+            }
+
             var newPath = new string[left.Length + right.Length];
             Array.Copy(left, newPath, left.Length);
             Array.Copy(right, 0, newPath, left.Length, right.Length);
