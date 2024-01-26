@@ -34,7 +34,7 @@ namespace EA4T.SteadyBear.Packager
         public SimpleMarkdownToHtmlLayerItem AddFile(FileInfo sourceFile, bool isMarkdown)
         {
             if (sourceFile == null)
-                throw new ArgumentNullException("sourceFile");
+                throw new ArgumentNullException(nameof(sourceFile));
 
             var item = new SimpleMarkdownToHtmlLayerItem();
             item.SourceFile = sourceFile;
