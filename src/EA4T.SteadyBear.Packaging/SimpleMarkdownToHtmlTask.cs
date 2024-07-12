@@ -67,7 +67,7 @@ namespace EA4T.SteadyBear.Packager
                 .Build();
 
             // prepare template
-            using (var templateStream = typeof(SimpleMarkdownToHtmlTask).Assembly.GetManifestResourceStream("EA4T.SteadyBear.Packager.Resources.MarkdownToHtml.html"))
+            using (var templateStream = typeof(SimpleMarkdownToHtmlTask).Assembly.GetManifestResourceStream("EA4T.SteadyBear.Packaging.Resources.MarkdownToHtml.html"))
             using (var templateReader = new StreamReader(templateStream, Encoding.UTF8))
             {
                 this.layer.Template = templateReader.ReadToEnd();
