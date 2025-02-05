@@ -42,7 +42,8 @@
     pre, code { font-family: Consolas, Courier New, Courier, monospace; color: #ffff8f; }
     pre { margin: 1.5em 2em; color: #ffff8f; }
 
-    article            { margin:0; padding: 10px 20px; }
+    article            { margin: 2em 0 4em 0; padding: 10px 20px; }
+    article            { background: #2c3032; border: solid #3D3D3D ; border-width: 0 1px; font-size: 90%; }
     header, footer     { margin:0; padding: 10px 20px; background: #2D2D2D; }
     header > .contents, 
     footer > .contents { margin: 0 auto 0 auto; max-width: 72em; }
@@ -56,14 +57,12 @@
     footer p.info      { font-size: .666em; }
     footer p.copyright { font-size: .8em; }
     .HelpCenter        { background: #353e40; }
-    .HelpCenterContent { margin:0 auto 0 auto; max-width: 80em; background: #2c3032; border: solid #3D3D3D ; border-width: 0 1px; }
+    .HelpCenterContent { margin:0 auto 0 auto; max-width: 80em; }
     @media print {
         .HelpCenterContent { max-width: unset; }
     }
 
-    .HelpCenterContent { padding: 10px; font-size: 90%; }
     @media screen { .HelpCenterContent { padding-bottom: 200px; } }
-    .HelpCenterContent article { padding: 0; }
     .HelpCenterContent p > img { border: #FEFEFE 0px solid; border-style: inset; margin: .5em; box-shadow: 0px 0px 5px 6px #202020; max-width: 96%; }
     .HelpCenterContent blockquote { background: #42423a; margin:  1em auto; padding: 0.8em 1em; }
     @media print { .HelpCenterContent blockquote { border-left: .3em solid #ededed; } }
@@ -79,9 +78,7 @@
     </header>
     <div class="HelpCenter">
         <div class="HelpCenterContent">
-            <article>
 {{{Contents}}}
-            </article>
         </div>
     </div>
     <footer>

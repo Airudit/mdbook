@@ -2,6 +2,7 @@
 namespace EA4T.SteadyBear.Packager
 {
     using EA4T.SteadyBear.PackageInstall;
+    using EA4T.SteadyBear.Packaging;
     using System;
     using System.Collections.Generic;
     using System.IO;
@@ -55,6 +56,19 @@ namespace EA4T.SteadyBear.Packager
                         interactor.WriteTaskError(this, "Argument --Export must be followed by a directory path. ");
                     }
                 }
+                else if ("--single-file".Equals(a.Current, StringComparison.OrdinalIgnoreCase))
+                {
+                    a.ConsumeOne();
+                    if (!string.IsNullOrEmpty(a.Next))
+                    {
+                        layer.SingleFile = a.Next;
+                        a.ConsumeOne();
+                    }
+                    else
+                    {
+                        interactor.WriteTaskError(this, "Argument --Single-File must be followed by a file path. ");
+                    }
+                }
                 else
                 {
                     // extra values???
@@ -85,7 +99,8 @@ namespace EA4T.SteadyBear.Packager
                 interactor.Out.WriteLine("    {file path}+ [options]");
                 interactor.Out.WriteLine("");
                 interactor.Out.WriteLine("Options: ");
-                interactor.Out.WriteLine("    --Export <dir>     Exports the generated documentation to this directory");
+                interactor.Out.WriteLine("    --Export <dir>        Exports the generated documentation to this directory");
+                interactor.Out.WriteLine("    --Single-File <file>  Exports the generated documentation to a single file");
                 interactor.Out.WriteLine("");
                 Environment.Exit(1);
             }
@@ -140,6 +155,7 @@ namespace EA4T.SteadyBear.Packager
 
             this.OrdererTaskLayer.Tasks.Add(new SimpleMarkdownToHtmlTask(MarkdownLayerKey));
             this.OrdererTaskLayer.Tasks.Add(new ExportMarkdownToHtmlTask("ExportMarkdownToHtml", MarkdownLayerKey));
+            this.OrdererTaskLayer.Tasks.Add(new CombineMarkdownToHtmlTask("CombineMarkdownToHtmlTask", MarkdownLayerKey));
         }
 
         public override void Verify(PackageContext context)

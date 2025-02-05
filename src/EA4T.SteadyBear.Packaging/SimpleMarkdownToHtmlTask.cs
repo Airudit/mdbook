@@ -68,7 +68,7 @@ namespace EA4T.SteadyBear.Packager
 
             // prepare template
             using (var templateStream = typeof(SimpleMarkdownToHtmlTask).Assembly.GetManifestResourceStream("EA4T.SteadyBear.Packaging.Resources.MarkdownToHtml.html"))
-            using (var templateReader = new StreamReader(templateStream, Encoding.UTF8))
+            using (var templateReader = new StreamReader(templateStream!, Encoding.UTF8))
             {
                 this.layer.Template = templateReader.ReadToEnd();
             }
@@ -125,6 +125,7 @@ namespace EA4T.SteadyBear.Packager
                 try
                 {
                     lang = new CultureInfo(titleParts[titleParts.Length - 1]);
+                    item.Lang = lang;
                     var newTitleParts = new string[titleParts.Length - 1];
                     Array.Copy(titleParts, newTitleParts, newTitleParts.Length);
                     title = string.Join(dot[0].ToString(), newTitleParts);
@@ -220,6 +221,7 @@ namespace EA4T.SteadyBear.Packager
 
                 return contents;
             }));
+            item.HtmlContents = htmlContents;
 
             // substitute HTML template variables
             // don't forget to HTML-escape strings!
@@ -238,7 +240,7 @@ namespace EA4T.SteadyBear.Packager
                 }
                 else if ("Contents".Equals(key, StringComparison.Ordinal))
                 {
-                    return htmlContents; // not escaped
+                    return "<article>\n" + htmlContents + "</article>\n"; // not escaped
                 }
                 else if ("Lang".Equals(key, StringComparison.Ordinal))
                 {

@@ -5,6 +5,7 @@ namespace EA4T.SteadyBear.Packager
     using System.Collections.Generic;
     using System.IO;
     using Markdig;
+    using System.Globalization;
 
     public sealed class SimpleMarkdownToHtmlLayer
     {
@@ -29,7 +30,9 @@ namespace EA4T.SteadyBear.Packager
         /// <summary>
         /// Export orders.
         /// </summary>
-        public List<SimpleMarkdownToHtmlLayerExport> Exports { get; set; } = new List<SimpleMarkdownToHtmlLayerExport>();
+        public List<SimpleMarkdownToHtmlLayerExport> Exports { get; } = new List<SimpleMarkdownToHtmlLayerExport>();
+
+        public string SingleFile { get; set; }
 
         public SimpleMarkdownToHtmlLayerItem AddFile(FileInfo sourceFile, bool isMarkdown)
         {
@@ -38,7 +41,7 @@ namespace EA4T.SteadyBear.Packager
 
             var item = new SimpleMarkdownToHtmlLayerItem();
             item.SourceFile = sourceFile;
-
+            item.IsMarkdown = isMarkdown;
             if (isMarkdown)
             {
                 item.TargetFile = new FileInfo(sourceFile.FullName + ".html");
@@ -61,6 +64,8 @@ namespace EA4T.SteadyBear.Packager
         public FileInfo TargetFile { get; internal set; }
         public string[] RelativePath { get; set; }
         public bool IsMarkdown { get; set; }
+        public string HtmlContents { get; set; }
+        public CultureInfo Lang { get; set; }
     }
 
     public sealed class SimpleMarkdownToHtmlLayerExport
