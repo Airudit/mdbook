@@ -67,10 +67,21 @@ namespace EA4T.SteadyBear.Packager
                 .Build();
 
             // prepare template
-            using (var templateStream = typeof(SimpleMarkdownToHtmlTask).Assembly.GetManifestResourceStream("EA4T.SteadyBear.Packaging.Resources.MarkdownToHtml.html"))
-            using (var templateReader = new StreamReader(templateStream!, Encoding.UTF8))
+            if (this.layer.TemplateFilePath != null)
             {
-                this.layer.Template = templateReader.ReadToEnd();
+                using (var templateStream = new FileStream(this.layer.TemplateFilePath, FileMode.Open, FileAccess.Read, FileShare.Read))
+                using (var templateReader = new StreamReader(templateStream!, Encoding.UTF8))
+                {
+                    this.layer.Template = templateReader.ReadToEnd();
+                }
+            }
+            else
+            {
+                using (var templateStream = typeof(SimpleMarkdownToHtmlTask).Assembly.GetManifestResourceStream("EA4T.SteadyBear.Packaging.Resources.MarkdownToHtml.html"))
+                using (var templateReader = new StreamReader(templateStream!, Encoding.UTF8))
+                {
+                    this.layer.Template = templateReader.ReadToEnd();
+                }
             }
 
             context.Visited(this);

@@ -69,6 +69,19 @@ namespace EA4T.SteadyBear.Packager
                         interactor.WriteTaskError(this, "Argument --Single-File must be followed by a file path. ");
                     }
                 }
+                else if ("--template".Equals(a.Current, StringComparison.OrdinalIgnoreCase))
+                {
+                    a.ConsumeOne();
+                    if (!string.IsNullOrEmpty(a.Next))
+                    {
+                        layer.TemplateFilePath = a.Next;
+                        a.ConsumeOne();
+                    }
+                    else
+                    {
+                        interactor.WriteTaskError(this, "Argument --template must be followed by a file path. ");
+                    }
+                }
                 else
                 {
                     // extra values???
@@ -101,6 +114,7 @@ namespace EA4T.SteadyBear.Packager
                 interactor.Out.WriteLine("Options: ");
                 interactor.Out.WriteLine("    --Export <dir>        Exports the generated documentation to this directory");
                 interactor.Out.WriteLine("    --Single-File <file>  Exports the generated documentation to a single file");
+                interactor.Out.WriteLine("    --Template <file>     Specifies the HTML template file");
                 interactor.Out.WriteLine("");
                 Environment.Exit(1);
             }

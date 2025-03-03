@@ -33,6 +33,8 @@ namespace EA4T.SteadyBear.Packager
         public List<SimpleMarkdownToHtmlLayerExport> Exports { get; } = new List<SimpleMarkdownToHtmlLayerExport>();
 
         public string SingleFile { get; set; }
+        
+        public string TemplateFilePath { get; set; }
 
         public SimpleMarkdownToHtmlLayerItem AddFile(FileInfo sourceFile, bool isMarkdown)
         {
