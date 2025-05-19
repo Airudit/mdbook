@@ -1,8 +1,9 @@
 ﻿
 namespace EA4T.SteadyBear.Packager
 {
-    using EA4T.SteadyBear.PackageInstall;
-    using EA4T.SteadyBear.Packaging;
+    using Airudit.MdBook.Core;
+    using Airudit.MdBook.Core.Internals;
+    using Somewhere;
     using System;
     using System.Collections.Generic;
     using System.IO;
@@ -11,20 +12,17 @@ namespace EA4T.SteadyBear.Packager
     /// <summary>
     /// Main command. Command to convert some markdown files to HTML (no packaging involved).
     /// </summary>
-    public sealed class MarkdownToHtmlMainTask : OrdererTask
+    public sealed class MarkdownToHtmlMainTask : ITask
     {
         private const string MarkdownLayerKey = "MarkdownToHtml";
 
         public MarkdownToHtmlMainTask()
-            : base(nameof(MarkdownToHtmlMainTask))
         {
         }
 
-        public bool DoRun { get; private set; } = true;
-
-        public override void Visit(PackageContext context)
+        public void Visit(PackageContext context)
         {
-            var interactor = context.RequireSingleLayer<IInteractor>();
+            var interactor = context.RequireSingleLayer<CommandLineLayer>();
 
             var layer = new SimpleMarkdownToHtmlLayer();
             layer.Key = MarkdownLayerKey;
@@ -32,79 +30,84 @@ namespace EA4T.SteadyBear.Packager
 
             // parse console arguments
             var isHelp = false;
+            var errors = new List<string>();
             var files = new List<FileInfo>();
             var directories = new List<DirectoryInfo>();
-            interactor.ConsumeArguments(a =>
+            var args = new ParseArgs(interactor.Arguments);
+            while (args.MoveNext())
             {
-                if ("--help".Equals(a.Current, StringComparison.OrdinalIgnoreCase))
+                string arg;
+                if (args.Is(arg = "--help"))
                 {
                     isHelp = true;
-                    a.ConsumeOne();
                 }
-                else if ("--export".Equals(a.Current, StringComparison.OrdinalIgnoreCase))
+                else if (args.Is(arg = "--export"))
                 {
-                    a.ConsumeOne();
-                    if (!string.IsNullOrEmpty(a.Next))
+                    if (args.Has(1))
                     {
+                        args.MoveNext();
                         var export = new SimpleMarkdownToHtmlLayerExport();
-                        export.Directory = new DirectoryInfo(a.Next);
+                        export.Directory = new DirectoryInfo(args.Current);
                         layer.Exports.Add(export);
-                        a.ConsumeOne();
                     }
                     else
                     {
-                        interactor.WriteTaskError(this, "Argument --Export must be followed by a directory path. ");
+                        errors.Add("Argument " + arg + " must be followed by a directory path. ");
                     }
                 }
-                else if ("--single-file".Equals(a.Current, StringComparison.OrdinalIgnoreCase))
+                else if (args.Is(arg = "--single-file"))
                 {
-                    a.ConsumeOne();
-                    if (!string.IsNullOrEmpty(a.Next))
+                    if (args.Has(1))
                     {
-                        layer.SingleFile = a.Next;
-                        a.ConsumeOne();
+                        args.MoveNext();
+                        layer.SingleFile = args.Current;
                     }
                     else
                     {
-                        interactor.WriteTaskError(this, "Argument --Single-File must be followed by a file path. ");
+                        errors.Add("Argument " + arg + " must be followed by a file path. ");
                     }
                 }
-                else if ("--template".Equals(a.Current, StringComparison.OrdinalIgnoreCase))
+                else if (args.Is(arg = "--template"))
                 {
-                    a.ConsumeOne();
-                    if (!string.IsNullOrEmpty(a.Next))
+                    if (args.Has(1))
                     {
-                        layer.TemplateFilePath = a.Next;
-                        a.ConsumeOne();
+                        args.MoveNext();
+                        layer.TemplateFilePath = args.Current;
                     }
                     else
                     {
-                        interactor.WriteTaskError(this, "Argument --template must be followed by a file path. ");
+                        errors.Add("Argument " + arg + " must be followed by a file path. ");
                     }
                 }
                 else
                 {
                     // extra values???
-                    if (Directory.Exists(a.Current))
+                    if (Directory.Exists(args.Current))
                     {
-                        directories.Add(new DirectoryInfo(a.Current));
-                        a.ConsumeOne();
+                        directories.Add(new DirectoryInfo(args.Current));
                     }
-                    else if (File.Exists(a.Current))
+                    else if (File.Exists(args.Current))
                     {
-                        files.Add(new FileInfo(a.Current));
-                        a.ConsumeOne();
+                        files.Add(new FileInfo(args.Current));
                     }
                     else
                     {
-                        interactor.WriteTaskError(this, "Unknown argumeent \"" + a.Current + "\". ");
+                        errors.Add("Unknown argumeent \"" + args.Current + "\". ");
                     }
                 }
-            });
+            }
+
+            if (errors.Any())
+            {
+                foreach (var error in errors)
+                {
+                    interactor.ErrorOut.WriteLine(error);
+                }
+            }
 
             if (isHelp)
             {
-                interactor.WriteTaskError(this, "Displaying help. ");
+                interactor.Out.WriteLine("Displaying help. ");
                 interactor.Out.WriteLine("");
                 interactor.Out.WriteLine("The `MarkdownToHtml` command will generate HTML files for each specified markdown file. ");
                 interactor.Out.WriteLine("");
@@ -120,6 +123,12 @@ namespace EA4T.SteadyBear.Packager
             }
             else
             {
+            }
+
+            if (errors.Any())
+            {
+                Environment.Exit(1);
+                return;
             }
 
             // verify exports
@@ -141,7 +150,7 @@ namespace EA4T.SteadyBear.Packager
 
                 if (!directoryMayExist)
                 {
-                    interactor.WriteTaskError(this, "Cannot find part of the export directory \"" + export.Directory + "\". ");
+                    interactor.ErrorOut.WriteLine("Cannot find part of the export directory \"" + export.Directory + "\". ");
                 }
             }
 
@@ -159,37 +168,14 @@ namespace EA4T.SteadyBear.Packager
                 var item = layer.AddFile(file, true);
                 item.RelativePath = new string[] { file.Name, };
             }
-
-            base.Visit(context);
         }
 
-        protected override void Populate(PackageContext context)
+        public void Verify(PackageContext context)
         {
-            var interactor = context.RequireSingleLayer<IInteractor>();
-
-            this.OrdererTaskLayer.Tasks.Add(new SimpleMarkdownToHtmlTask(MarkdownLayerKey));
-            this.OrdererTaskLayer.Tasks.Add(new ExportMarkdownToHtmlTask("ExportMarkdownToHtml", MarkdownLayerKey));
-            this.OrdererTaskLayer.Tasks.Add(new CombineMarkdownToHtmlTask("CombineMarkdownToHtmlTask", MarkdownLayerKey));
         }
 
-        public override void Verify(PackageContext context)
+        public void Run(PackageContext context)
         {
-            base.Verify(context);
-        }
-
-        public override void Run(PackageContext context)
-        {
-            if (this.DoRun)
-            {
-                base.Run(context);
-            }
-            else
-            {
-                var interactor = context.RequireSingleLayer<IInteractor>();
-                interactor.Out.WriteLine(string.Empty);
-                interactor.WriteTaskError(this, "Not running. ");
-                interactor.Out.WriteLine(string.Empty);
-            }
         }
 
         private void ExpandDirectoryToFiles(DirectoryInfo directory, SimpleMarkdownToHtmlLayer layer, string[] path)
