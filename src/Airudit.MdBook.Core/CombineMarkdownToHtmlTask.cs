@@ -122,7 +122,11 @@ public class CombineMarkdownToHtmlTask : ITask
             }
             else if ("Info".Equals(key, StringComparison.Ordinal))
             {
-                return WebUtility.HtmlEncode(string.Format(CultureInfo.InvariantCulture, "This document was generated automatically from many files on {0:o} using the MarkdownToHtmlTask tool. Manual modifications will be lost next time this file is generated again. ", DateTime.UtcNow));
+                return WebUtility.HtmlEncode(string.Format(CultureInfo.InvariantCulture, "This document was generated automatically from many files on {0:o} using the dotnet mdbook tool. Manual modifications will be lost next time this file is generated again. ", DateTime.UtcNow));
+            }
+            else if ("Copyright".Equals(key, StringComparison.Ordinal))
+            {
+                return WebUtility.HtmlEncode(layer.Copyright ?? string.Empty);
             }
             else
             {

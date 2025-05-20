@@ -79,6 +79,18 @@ namespace EA4T.SteadyBear.Packager
                         errors.Add("Argument " + arg + " must be followed by a file path. ");
                     }
                 }
+                else if (args.Is(arg = "--copyright"))
+                {
+                    if (args.Has(1))
+                    {
+                        args.MoveNext();
+                        layer.Copyright = args.Current;
+                    }
+                    else
+                    {
+                        errors.Add("Argument " + arg + " must be followed by a file path. ");
+                    }
+                }
                 else
                 {
                     // extra values???
@@ -118,6 +130,7 @@ namespace EA4T.SteadyBear.Packager
                 interactor.Out.WriteLine("    --Export <dir>        Exports the generated documentation to this directory");
                 interactor.Out.WriteLine("    --Single-File <file>  Exports the generated documentation to a single file");
                 interactor.Out.WriteLine("    --Template <file>     Specifies the HTML template file");
+                interactor.Out.WriteLine("    --Copyright <str>     Specifies a copyright notice");
                 interactor.Out.WriteLine("");
                 Environment.Exit(0);
             }

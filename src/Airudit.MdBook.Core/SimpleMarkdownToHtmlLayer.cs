@@ -36,6 +36,8 @@ namespace EA4T.SteadyBear.Packager
         public string SingleFile { get; set; }
         
         public string TemplateFilePath { get; set; }
+        
+        public string? Copyright { get; set; }
 
         public SimpleMarkdownToHtmlLayerItem AddFile(FileInfo sourceFile, bool isMarkdown)
         {
