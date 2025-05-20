@@ -10,7 +10,7 @@
     <GenerateDocumentationFile>True</GenerateDocumentationFile>
     <Authors>SandRock</Authors>
     <Description>turns a collection a markdown files into a book</Description>
-    <PackageProjectUrl>https://github.com/Airudit/mdbook/</PackageProjectUrl>
+    <PackageProjectUrl>https://github.com/Airudit/mdbook</PackageProjectUrl>
     <PackageTags>markdown commonmark</PackageTags>
     <PackageReleaseNotes>experimental release!</PackageReleaseNotes>
     <Company>Airudit</Company>
@@ -18,6 +18,8 @@
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>mdbook</ToolCommandName>
     <MinVerTagPrefix>v</MinVerTagPrefix>
+    <RepositoryUrl>git@github.com:Airudit/mdbook.git</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
     <!--<PackageOutputPath>./nupkg</PackageOutputPath>-->
   </PropertyGroup>
 
