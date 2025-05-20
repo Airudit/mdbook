@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "isRoot": true,
+  "tools": {
+    "airudit.mdbook": {
+      "version": "0.1.0",
+      "commands": [
+        "mdbook"
+      ]
+    }
+  }
+}

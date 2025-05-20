@@ -21,6 +21,7 @@
     <RepositoryUrl>git@github.com:Airudit/mdbook.git</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <!--<PackageOutputPath>./nupkg</PackageOutputPath>-->
+    <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
 
   <ItemGroup>
@@ -38,4 +39,7 @@
     </PackageReference>
   </ItemGroup>
 
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath=""/>
+  </ItemGroup>
 </Project>

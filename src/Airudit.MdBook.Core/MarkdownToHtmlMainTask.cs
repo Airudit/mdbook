@@ -119,7 +119,7 @@ namespace EA4T.SteadyBear.Packager
                 interactor.Out.WriteLine("    --Single-File <file>  Exports the generated documentation to a single file");
                 interactor.Out.WriteLine("    --Template <file>     Specifies the HTML template file");
                 interactor.Out.WriteLine("");
-                Environment.Exit(1);
+                Environment.Exit(0);
             }
             else
             {
