@@ -6,6 +6,14 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <AssemblyName>mdbook</AssemblyName>
+    <EnablePackageValidation>true</EnablePackageValidation>
+    <GenerateDocumentationFile>True</GenerateDocumentationFile>
+    <Authors>Antoine Sottiau</Authors>
+    <Description>turns a collection a markdown files into a book</Description>
+    <PackageProjectUrl>https://github.com/Airudit/mdbook/</PackageProjectUrl>
+    <PackageTags>markdown commonmark</PackageTags>
+    <PackageReleaseNotes>experimental release!</PackageReleaseNotes>
+    <Company>Airudit</Company>
   </PropertyGroup>
 
   <ItemGroup>
@@ -13,6 +21,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="DotNet.ReproducibleBuilds" Version="1.2.25">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
     <PackageReference Include="MinVer" Version="6.0.0">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
