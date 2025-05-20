@@ -13,6 +13,7 @@
     <PackageReleaseNotes>experimental release!</PackageReleaseNotes>
     <Company>Airudit</Company>
     <PackageId>Airudit.MdBook.Core</PackageId>
+    <MinVerTagPrefix>v</MinVerTagPrefix>
   </PropertyGroup>
 
   <ItemGroup>

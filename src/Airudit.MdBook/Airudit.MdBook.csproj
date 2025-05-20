@@ -17,7 +17,8 @@
     <PackageId>Airudit.MdBook</PackageId>
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>mdbook</ToolCommandName>
-<!--    <PackageOutputPath>./nupkg</PackageOutputPath>-->
+    <MinVerTagPrefix>v</MinVerTagPrefix>
+    <!--<PackageOutputPath>./nupkg</PackageOutputPath>-->
   </PropertyGroup>
 
   <ItemGroup>
