@@ -1,6 +1,7 @@
 ﻿
 namespace EA4T.SteadyBear.Packager
 {
+    using Airudit.MdBook.Core;
     using System;
     using System.Collections.Generic;
     using System.IO;

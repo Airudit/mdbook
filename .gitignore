@@ -1,0 +1,25 @@
+
+# Visual Studio stuff
+.vs/
+[Bb]in/
+[Oo]bj/
+packages/
+TestResults/
+package-lock.json
+*.snk
+*.user
+*.suo
+StyleCop.Cache
+.vs
+/UpgradeLog*.htm
+*.playlist
+UpgradeReport.sarif
+upgrade-assistant.clef
+AnalysisReport.sarif
+
+.idea
+*.lnk
+*.userprefs
+/tmp/
+
+*.md.html

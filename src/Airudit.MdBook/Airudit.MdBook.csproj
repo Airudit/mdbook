@@ -1,0 +1,38 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net6.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AssemblyName>mdbook</AssemblyName>
+    <EnablePackageValidation>true</EnablePackageValidation>
+    <GenerateDocumentationFile>True</GenerateDocumentationFile>
+    <Authors>SandRock</Authors>
+    <Description>turns a collection a markdown files into a book</Description>
+    <PackageProjectUrl>https://github.com/Airudit/mdbook/</PackageProjectUrl>
+    <PackageTags>markdown commonmark</PackageTags>
+    <PackageReleaseNotes>experimental release!</PackageReleaseNotes>
+    <Company>Airudit</Company>
+    <PackageId>Airudit.MdBook</PackageId>
+    <PackAsTool>true</PackAsTool>
+    <ToolCommandName>mdbook</ToolCommandName>
+<!--    <PackageOutputPath>./nupkg</PackageOutputPath>-->
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Airudit.MdBook.Core\Airudit.MdBook.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="DotNet.ReproducibleBuilds" Version="1.2.25">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="MinVer" Version="6.0.0">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+</Project>

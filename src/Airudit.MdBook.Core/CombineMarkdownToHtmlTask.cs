@@ -1,8 +1,7 @@
 ﻿
-namespace EA4T.SteadyBear.Packaging;
+namespace Airudit.MdBook.Core;
 
-using EA4T.SteadyBear.PackageInstall;
-using EA4T.SteadyBear.PackageInstall.Internals;
+using Airudit.MdBook.Core.Internals;
 using EA4T.SteadyBear.Packager;
 using System;
 using System.Globalization;
@@ -14,20 +13,13 @@ using System.Web;
 /// <summary>
 /// Combines the files handled by the <see cref="SimpleMarkdownToHtmlTask"/>.
 /// </summary>
-public class CombineMarkdownToHtmlTask : IPackageTask
+public class CombineMarkdownToHtmlTask : ITask
 {
     private static readonly Regex replacer = new Regex(@"\{\{\{([^}]+)\}\}\}", RegexOptions.Compiled);
-    private readonly string parentTaskKey;
 
-    public CombineMarkdownToHtmlTask(string key, string parentTaskKey)
+    public CombineMarkdownToHtmlTask()
     {
-        this.parentTaskKey = parentTaskKey;
-        this.Key = key;
     }
-
-    public string Name { get => nameof(CombineMarkdownToHtmlTask); }
-    
-    public string Key { get; }
 
     public void Visit(PackageContext context)
     {
@@ -39,8 +31,6 @@ public class CombineMarkdownToHtmlTask : IPackageTask
         {
             throw new ArgumentNullException(nameof(context));
         }
-
-        context.Verified(this, true);
     }
 
     public void Run(PackageContext context)
@@ -50,10 +40,9 @@ public class CombineMarkdownToHtmlTask : IPackageTask
             throw new ArgumentNullException(nameof(context));
         }
 
-        var interactor = context.RequireSingleLayer<IInteractor>();
         var errors = 0;
 
-        var layer = context.Layers.OfType<SimpleMarkdownToHtmlLayer>().Single(x => this.parentTaskKey.Equals(x.Key, StringComparison.Ordinal));
+        var layer = context.RequireSingleLayer<SimpleMarkdownToHtmlLayer>();
         if (layer?.SingleFile == null)
         {
             return;

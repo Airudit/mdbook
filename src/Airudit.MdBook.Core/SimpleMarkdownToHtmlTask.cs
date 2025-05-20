@@ -1,8 +1,9 @@
 ﻿
 namespace EA4T.SteadyBear.Packager
 {
-    using EA4T.SteadyBear.PackageInstall;
-    using EA4T.SteadyBear.Packager.Internals;
+    using Airudit.MdBook.Core;
+    using Airudit.MdBook.Core.Internals;
+    using Airudit.Promethai.Domain.Core.Internals;
     using Markdig;
     using Markdig.Renderers;
     using Markdig.Syntax;
@@ -19,23 +20,18 @@ namespace EA4T.SteadyBear.Packager
     /// <summary>
     /// Converts some markdown files to HTML.
     /// </summary>
-    public sealed class SimpleMarkdownToHtmlTask : IPackageTask
+    public sealed class SimpleMarkdownToHtmlTask : ITask
     {
         private static readonly JsonHelper json = new JsonHelper(string.Empty);
         private static readonly Regex replacer = new Regex(@"\{\{\{([^}]+)\}\}\}", RegexOptions.Compiled);
         private static readonly Regex linksRegex = new Regex(@"<a href=""([^""]+)"">", RegexOptions.Compiled);
         private static readonly char[] directorySeparators = new char[] { '/', '\\', };
-        private string profile;
-        private SimpleMarkdownToHtmlLayer layer;
+        private string? profile;
+        private SimpleMarkdownToHtmlLayer? layer;
 
-        public SimpleMarkdownToHtmlTask(string key)
+        public SimpleMarkdownToHtmlTask()
         {
-            this.Key = key;
         }
-
-        public string Name => nameof(SimpleMarkdownToHtmlTask);
-
-        public string Key { get; }
 
         public void Visit(PackageContext context)
         {
@@ -49,13 +45,12 @@ namespace EA4T.SteadyBear.Packager
                 throw new InvalidOperationException("Cannot run this task twice. ");
             }
 
-            var interactor = context.RequireSingleLayer<IInteractor>();
+            var interactor = context.RequireSingleLayer<CommandLineLayer>();
 
-            this.layer = context.GetSingleLayer<SimpleMarkdownToHtmlLayer>();
+            this.layer = context.RequireSingleLayer<SimpleMarkdownToHtmlLayer>();
             if (this.layer == null)
             {
                 this.layer = new SimpleMarkdownToHtmlLayer();
-                this.layer.Key = this.Key;
                 context.AddLayer(layer);
             }
 
@@ -77,14 +72,12 @@ namespace EA4T.SteadyBear.Packager
             }
             else
             {
-                using (var templateStream = typeof(SimpleMarkdownToHtmlTask).Assembly.GetManifestResourceStream("EA4T.SteadyBear.Packaging.Resources.MarkdownToHtml.html"))
+                using (var templateStream = typeof(SimpleMarkdownToHtmlTask).Assembly.GetManifestResourceStream("Airudit.MdBook.Core.res.default.dark.html"))
                 using (var templateReader = new StreamReader(templateStream!, Encoding.UTF8))
                 {
                     this.layer.Template = templateReader.ReadToEnd();
                 }
             }
-
-            context.Visited(this);
         }
 
         public void Verify(PackageContext context)
@@ -93,11 +86,6 @@ namespace EA4T.SteadyBear.Packager
             {
                 throw new ArgumentNullException(nameof(context));
             }
-
-            var errors = 0;
-            var interactor = context.RequireSingleLayer<IInteractor>();
-
-            context.Verified(this, errors == 0);
         }
 
         public void Run(PackageContext context)
@@ -107,21 +95,16 @@ namespace EA4T.SteadyBear.Packager
                 throw new ArgumentNullException(nameof(context));
             }
 
-            var errors = 0;
-            var interactor = context.RequireSingleLayer<IInteractor>();
-
             foreach (var item in this.layer.Items.ToArray()) // we need to change the collection while enumerating it
             {
                 this.ProcessFileMarkdown(context, item);
             }
-
-            context.Ran(this, errors == 0);
         }
 
         private void ProcessFileMarkdown(PackageContext context, SimpleMarkdownToHtmlLayerItem item)
         {
-            var interactor = context.RequireSingleLayer<IInteractor>();
-            interactor.WriteTaskInfo(this, "Processing markdown file \"" + item.SourceFile + "\". ");
+            var interactor = context.RequireSingleLayer<CommandLineLayer>();
+            interactor.Out.WriteLine("Processing markdown file \"" + item.SourceFile + "\". ");
 
             // prepare
             var title = Path.GetFileNameWithoutExtension(item.SourceFile.Name);
@@ -347,7 +330,7 @@ namespace EA4T.SteadyBear.Packager
                     Uri uri;
                     if (link.Url != null && Uri.TryCreate(link.Url, UriKind.Relative, out uri))
                     {
-                        if (Extensions.IsInvalidFileRelativePath(link.Url))
+                        if (MyExtensions.IsInvalidFileRelativePath(link.Url))
                         {
                             // invalid relative path (see unit tests for IsInvalidFileRelativePath)
                             // TODO: this will generate an invalid hyperlink. what should we do?

@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net6.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <EnablePackageValidation>true</EnablePackageValidation>
+    <GenerateDocumentationFile>True</GenerateDocumentationFile>
+    <Authors>SandRock</Authors>
+    <Description>turns a collection a markdown files into a book</Description>
+    <PackageProjectUrl>https://github.com/Airudit/mdbook/</PackageProjectUrl>
+    <PackageTags>markdown commonmark</PackageTags>
+    <PackageReleaseNotes>experimental release!</PackageReleaseNotes>
+    <Company>Airudit</Company>
+    <PackageId>Airudit.MdBook.Core</PackageId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="DotNet.ReproducibleBuilds" Version="1.2.25">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Markdig" Version="0.41.1" />
+    <PackageReference Include="MinVer" Version="6.0.0">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Remove="res\default.dark.html" />
+    <EmbeddedResource Include="res\default.dark.html" />
+  </ItemGroup>
+
+</Project>
