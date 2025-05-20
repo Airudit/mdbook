@@ -26,8 +26,8 @@ namespace EA4T.SteadyBear.Packager
         private static readonly Regex replacer = new Regex(@"\{\{\{([^}]+)\}\}\}", RegexOptions.Compiled);
         private static readonly Regex linksRegex = new Regex(@"<a href=""([^""]+)"">", RegexOptions.Compiled);
         private static readonly char[] directorySeparators = new char[] { '/', '\\', };
-        private string profile;
-        private SimpleMarkdownToHtmlLayer layer;
+        private string? profile;
+        private SimpleMarkdownToHtmlLayer? layer;
 
         public SimpleMarkdownToHtmlTask()
         {
@@ -95,7 +95,6 @@ namespace EA4T.SteadyBear.Packager
                 throw new ArgumentNullException(nameof(context));
             }
 
-            var errors = 0;
             foreach (var item in this.layer.Items.ToArray()) // we need to change the collection while enumerating it
             {
                 this.ProcessFileMarkdown(context, item);

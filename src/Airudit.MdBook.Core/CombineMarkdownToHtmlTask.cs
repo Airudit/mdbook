@@ -16,7 +16,6 @@ using System.Web;
 public class CombineMarkdownToHtmlTask : ITask
 {
     private static readonly Regex replacer = new Regex(@"\{\{\{([^}]+)\}\}\}", RegexOptions.Compiled);
-    private readonly string parentTaskKey;
 
     public CombineMarkdownToHtmlTask()
     {

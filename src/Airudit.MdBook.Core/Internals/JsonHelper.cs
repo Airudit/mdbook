@@ -111,7 +111,7 @@ namespace Airudit.MdBook.Core.Internals
             {
                 throw this.Fail("Null element. ");
             }
-            else if (element.TryGetValue(name, out JToken child))
+            else if (element.TryGetValue(name, out JToken? child))
             {
                 var valueElement = child as JValue;
                 if (valueElement != null && valueElement.Type == JTokenType.Null)
@@ -120,7 +120,7 @@ namespace Airudit.MdBook.Core.Internals
                 }
                 else if (valueElement != null && valueElement.Type == JTokenType.String)
                 {
-                    var stringValue = (string)valueElement.Value;
+                    var stringValue = (string?)valueElement.Value;
                     if (string.IsNullOrEmpty(stringValue))
                     {
                         return defaultValue ?? throw this.Fail("Element[" + name + "] has no value. ");
@@ -172,13 +172,13 @@ namespace Airudit.MdBook.Core.Internals
         /// <param name="name"></param>
         /// <returns></returns>
         /// <exception cref="InvalidOperationException">when property is not of string type</exception>
-        public string GetString(JObject element, string name)
+        public string? GetString(JObject element, string name)
         {
             if (element == null)
             {
                 throw this.Fail("Null element. ");
             }
-            else if (element.TryGetValue(name, out JToken child))
+            else if (element.TryGetValue(name, out JToken? child))
             {
                 var valueElement = child as JValue;
                 if (valueElement != null && valueElement.Type == JTokenType.Null)
