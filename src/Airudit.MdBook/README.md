@@ -27,7 +27,7 @@ dotnet mdbook --help
 
 ## Restore
 
-If the tool il already installed in your project, you need to restore the tools using
+If the tool il already installed in your project, you need to [restore the tools](https://learn.microsoft.com/en-us/dotnet/core/tools/local-tools-how-to-use) using
 
 ```console
 dotnet tool restore

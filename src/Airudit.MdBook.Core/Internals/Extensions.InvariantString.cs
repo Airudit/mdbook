@@ -8,7 +8,7 @@ namespace System
     /// <summary>
     /// Extension methods for common types that provide ToInvariantString() capability.
     /// </summary>
-    public static class ToStringExtensions
+    internal static class ToStringExtensions
     {
         /// <summary>
         /// Returns an invariant, roundtrip-safe string representation of this value.
