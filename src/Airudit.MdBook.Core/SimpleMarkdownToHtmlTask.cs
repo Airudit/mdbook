@@ -54,6 +54,8 @@ namespace Airudit.MdBook.Core
                 .UseAutoIdentifiers()
                 .UseAutoLinks()
                 .UsePipeTables()
+                .UseEmphasisExtras()
+                .UseTaskLists()
                 .Build();
 
             // prepare template
@@ -196,10 +198,7 @@ namespace Airudit.MdBook.Core
             // generate HTML
             string htmlContents;
             {
-                var writer = new StringWriter();
-                var renderer = new HtmlRenderer(writer);
-                renderer.Render(dom);
-                htmlContents = writer.ToString();
+                htmlContents = Markdown.ToHtml(dom, this.layer.Pipeline);
             }
 
             // add a class="external" to external links <a href="http://...">
