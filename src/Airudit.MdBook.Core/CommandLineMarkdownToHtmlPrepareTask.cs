@@ -102,7 +102,7 @@ namespace Airudit.MdBook.Core
                     }
                     else
                     {
-                        errors.Add("Unknown argumeent \"" + args.Current + "\". ");
+                        errors.Add("Unknown argument \"" + args.Current + "\". ");
                     }
                 }
             }
@@ -117,18 +117,22 @@ namespace Airudit.MdBook.Core
 
             if (isHelp)
             {
-                interactor.Out.WriteLine("Displaying help. ");
+                interactor.Out.WriteLine("Airudit.MdBook – Usage");
                 interactor.Out.WriteLine("");
-                interactor.Out.WriteLine("The `MarkdownToHtml` command will generate HTML files for each specified markdown file. ");
+                interactor.Out.WriteLine("This command will generate HTML files for each specified markdown file. ");
                 interactor.Out.WriteLine("");
-                interactor.Out.WriteLine("MarkdownToHtml command usage: ");
-                interactor.Out.WriteLine("    {file path}+ [options]");
+                interactor.Out.WriteLine("command usage: ");
+                interactor.Out.WriteLine("    mdbook {file path}+ [options]");
                 interactor.Out.WriteLine("");
                 interactor.Out.WriteLine("Options: ");
                 interactor.Out.WriteLine("    --Export <dir>        Exports the generated documentation to this directory");
                 interactor.Out.WriteLine("    --Single-File <file>  Exports the generated documentation to a single file");
-                interactor.Out.WriteLine("    --Template <file>     Specifies the HTML template file");
+                interactor.Out.WriteLine("    --Template <file>     Specifies the HTML template file path");
                 interactor.Out.WriteLine("    --Copyright <str>     Specifies a copyright notice");
+                interactor.Out.WriteLine("");
+                interactor.Out.WriteLine("Built-in templates:");
+                interactor.Out.WriteLine("    --Template builtin:default.light.html");
+                interactor.Out.WriteLine("    --Template builtin:default.dark.html");
                 interactor.Out.WriteLine("");
                 Environment.Exit(0);
             }

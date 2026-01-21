@@ -1,5 +1,5 @@
 
-namespace Airudit.MdBook.Core.Internals;
+namespace Airudit.MdBook.Core;
 
 using System;
 

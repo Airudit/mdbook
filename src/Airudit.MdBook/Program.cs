@@ -1,9 +1,7 @@
 ﻿
 using Airudit.MdBook.Core;
-using Airudit.MdBook.Core.Internals;
 
 var context = new PackageContext();
-
 context.AddLayer(new CommandLineLayer(Console.Out, Console.Error, Console.In, args));
 
 var tasks = new List<ITask>();
