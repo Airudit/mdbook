@@ -2,7 +2,6 @@
 namespace Airudit.MdBook.Core;
 
 using Airudit.MdBook.Core.Internals;
-using EA4T.SteadyBear.Packager;
 using System;
 using System.Globalization;
 using System.Net;

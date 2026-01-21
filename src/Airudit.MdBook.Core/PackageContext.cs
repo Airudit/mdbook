@@ -1,13 +1,13 @@
 
 namespace Airudit.MdBook.Core;
 
-using EA4T.SteadyBear.Packager;
-using System;
-
-public class PackageContext
+public sealed class PackageContext
 {
     private List<object> layers { get; } = new();
     
+    /// <summary>
+    /// The data layers.
+    /// </summary>
     public IReadOnlyList<object> Layers => layers;
 
     public void AddLayer(object layer)

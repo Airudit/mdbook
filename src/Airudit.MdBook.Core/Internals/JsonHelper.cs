@@ -1,7 +1,7 @@
-﻿
+﻿// code copied from https://gist.github.com/sandrock/848aecdcb6283b2e64837ff5c8e3d2ed
+
 namespace Airudit.MdBook.Core.Internals
 {
-    using Airudit.Promethai.Domain.Core.Internals;
     using Newtonsoft.Json.Linq;
     using System;
     using System.Collections;

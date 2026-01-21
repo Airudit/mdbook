@@ -1,7 +1,6 @@
 ﻿
-namespace EA4T.SteadyBear.Packager
+namespace Airudit.MdBook.Core
 {
-    using Airudit.MdBook.Core;
     using Airudit.MdBook.Core.Internals;
     using Somewhere;
     using System;
@@ -12,11 +11,11 @@ namespace EA4T.SteadyBear.Packager
     /// <summary>
     /// Main command. Command to convert some markdown files to HTML (no packaging involved).
     /// </summary>
-    public sealed class MarkdownToHtmlMainTask : ITask
+    public sealed class CommandLineMarkdownToHtmlPrepareTask : ITask
     {
         private const string MarkdownLayerKey = "MarkdownToHtml";
 
-        public MarkdownToHtmlMainTask()
+        public CommandLineMarkdownToHtmlPrepareTask()
         {
         }
 
@@ -33,7 +32,7 @@ namespace EA4T.SteadyBear.Packager
             var errors = new List<string>();
             var files = new List<FileInfo>();
             var directories = new List<DirectoryInfo>();
-            var args = new ParseArgs(interactor.Arguments);
+            using var args = new ParseArgs(interactor.Arguments);
             while (args.MoveNext())
             {
                 string arg;

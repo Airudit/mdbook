@@ -1,13 +1,15 @@
 ﻿
-namespace EA4T.SteadyBear.Packager
+namespace Airudit.MdBook.Core
 {
-    using Airudit.MdBook.Core;
+    using Markdig;
     using System;
     using System.Collections.Generic;
     using System.IO;
-    using Markdig;
     using System.Globalization;
 
+    /// <summary>
+    /// MD to HTML main layer.
+    /// </summary>
     public sealed class SimpleMarkdownToHtmlLayer
     {
         public SimpleMarkdownToHtmlLayer()
@@ -45,7 +47,9 @@ namespace EA4T.SteadyBear.Packager
         public SimpleMarkdownToHtmlLayerItem AddFile(FileInfo sourceFile, bool isMarkdown)
         {
             if (sourceFile == null)
+            {
                 throw new ArgumentNullException(nameof(sourceFile));
+            }
 
             var item = new SimpleMarkdownToHtmlLayerItem();
             item.SourceFile = sourceFile;
@@ -67,17 +71,18 @@ namespace EA4T.SteadyBear.Packager
 
     public sealed class SimpleMarkdownToHtmlLayerItem
     {
-        public FileInfo SourceFile { get; internal set; }
+        public FileInfo SourceFile { get; internal set; } = null!;
 
-        public FileInfo TargetFile { get; internal set; }
-        public string[] RelativePath { get; set; }
+        public FileInfo TargetFile { get; internal set; } = null!;
         public bool IsMarkdown { get; set; }
-        public string HtmlContents { get; set; }
-        public CultureInfo Lang { get; set; }
+
+        public string[]? RelativePath { get; set; }
+        public string? HtmlContents { get; set; }
+        public CultureInfo? Lang { get; set; }
     }
 
     public sealed class SimpleMarkdownToHtmlLayerExport
     {
-        public DirectoryInfo Directory { get; set; }
+        public DirectoryInfo Directory { get; set; } = null!;
     }
 }

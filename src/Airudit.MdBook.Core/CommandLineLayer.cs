@@ -3,6 +3,9 @@ namespace Airudit.MdBook.Core;
 
 using System;
 
+/// <summary>
+/// Brings references for handling CLI.
+/// </summary>
 public sealed class CommandLineLayer
 {
     public CommandLineLayer(TextWriter @out, TextWriter errorOut, TextReader @in, string[] args)
