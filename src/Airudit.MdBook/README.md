@@ -27,7 +27,7 @@ dotnet mdbook --help
 
 ## Restore
 
-If the tool il already installed in your project, you need to restore the tools using
+If the tool il already installed in your project, you need to [restore the tools](https://learn.microsoft.com/en-us/dotnet/core/tools/local-tools-how-to-use) using
 
 ```console
 dotnet tool restore
@@ -51,6 +51,17 @@ Options:
     --Export <dir>        Exports the generated documentation to this directory
     --Single-File <file>  Exports the generated documentation to a single file
     --Template <file>     Specifies the HTML template file
+```
+
+Built-in templates: 
+
+- `--Template builtin:default.light.html` (default)
+- `--Template builtin:default.dark.html`
+
+## Code
+
+```bash
+dotnet run -v q --framework net8.0 --project src/Airudit.MdBook -- --help
 ```
 
 ## More info

@@ -1,9 +1,7 @@
 ﻿
-namespace EA4T.SteadyBear.Packager
+namespace Airudit.MdBook.Core
 {
-    using Airudit.MdBook.Core;
     using Airudit.MdBook.Core.Internals;
-    using Airudit.Promethai.Domain.Core.Internals;
     using Markdig;
     using Markdig.Renderers;
     using Markdig.Syntax;
@@ -14,6 +12,7 @@ namespace EA4T.SteadyBear.Packager
     using System.IO;
     using System.Linq;
     using System.Net;
+    using System.Reflection;
     using System.Text;
     using System.Text.RegularExpressions;
 
@@ -28,10 +27,6 @@ namespace EA4T.SteadyBear.Packager
         private static readonly char[] directorySeparators = new char[] { '/', '\\', };
         private string? profile;
         private SimpleMarkdownToHtmlLayer? layer;
-
-        public SimpleMarkdownToHtmlTask()
-        {
-        }
 
         public void Visit(PackageContext context)
         {
@@ -62,7 +57,14 @@ namespace EA4T.SteadyBear.Packager
                 .Build();
 
             // prepare template
-            if (this.layer.TemplateFilePath != null)
+            const string builtinPrefix = "builtin:";
+            var myAssembly = typeof(SimpleMarkdownToHtmlTask).Assembly;
+            if (this.layer.TemplateFilePath != null && this.layer.TemplateFilePath.StartsWith(builtinPrefix, StringComparison.InvariantCulture))
+            {
+                var path = "Airudit.MdBook.Core.res." + this.layer.TemplateFilePath.Substring(builtinPrefix.Length);
+                this.layer.Template = this.ReadTemplateFromAssembly(myAssembly, path);
+            }
+            else if (this.layer.TemplateFilePath != null)
             {
                 using (var templateStream = new FileStream(this.layer.TemplateFilePath, FileMode.Open, FileAccess.Read, FileShare.Read))
                 using (var templateReader = new StreamReader(templateStream!, Encoding.UTF8))
@@ -72,11 +74,8 @@ namespace EA4T.SteadyBear.Packager
             }
             else
             {
-                using (var templateStream = typeof(SimpleMarkdownToHtmlTask).Assembly.GetManifestResourceStream("Airudit.MdBook.Core.res.default.dark.html"))
-                using (var templateReader = new StreamReader(templateStream!, Encoding.UTF8))
-                {
-                    this.layer.Template = templateReader.ReadToEnd();
-                }
+                var path = "Airudit.MdBook.Core.res.default.light.html";
+                this.layer.Template = this.ReadTemplateFromAssembly(myAssembly, path);
             }
         }
 
@@ -114,11 +113,11 @@ namespace EA4T.SteadyBear.Packager
             CultureInfo lang = null;
             var dot = new char[] { '.', };
             var titleParts = title.Split(dot);
-            if (titleParts.Length > 1 && titleParts[titleParts.Length - 1].Length >= 2)
+            if (titleParts.Length > 1 && titleParts[^1].Length >= 2)
             {
                 try
                 {
-                    lang = new CultureInfo(titleParts[titleParts.Length - 1]);
+                    lang = new CultureInfo(titleParts[^1]);
                     item.Lang = lang;
                     var newTitleParts = new string[titleParts.Length - 1];
                     Array.Copy(titleParts, newTitleParts, newTitleParts.Length);
@@ -139,7 +138,7 @@ namespace EA4T.SteadyBear.Packager
 
             // include markdown parts
             var includeRegex = new Regex(@"\{\{(include: *)([/a-zA-Z0-9 ()+='"",.?_-]+)\}\}", RegexOptions.None);
-            text = includeRegex.Replace(text, new MatchEvaluator(m =>
+            text = includeRegex.Replace(text, m =>
             {
                 var origValue = m.Value;
                 var value = origValue;
@@ -167,7 +166,7 @@ namespace EA4T.SteadyBear.Packager
                             try
                             {
                                 contents.Append("\n<!-- " + origValue + ": INCLUDE BEGINS -->\n");
-                                contents.Append(System.IO.File.ReadAllText(doc.FullName, Encoding.UTF8));
+                                contents.Append(File.ReadAllText(doc.FullName, Encoding.UTF8));
                                 contents.Append("\n<!-- " + origValue + ": INCLUDE ENDS   -->\n");
                             }
                             catch (UnauthorizedAccessException ex)
@@ -187,7 +186,7 @@ namespace EA4T.SteadyBear.Packager
                 }
 
                 return contents.ToString();
-            }));
+            });
 
             // change markdown hyperlinks from md to md.html (X.md => x.md.html)
             // TODO: to consider: only change local .md links if these are to be rendered?
@@ -224,7 +223,7 @@ namespace EA4T.SteadyBear.Packager
             // - {{{Contents}}}   the markdown-converted HTML part
             // - {{{Lang}}}       the page's lang
             // - {{{Info}}}       a information string
-            var page = replacer.Replace(this.layer.Template, new MatchEvaluator(match =>
+            var page = replacer.Replace(this.layer.Template, match =>
             {
                 var key = match.Groups[1].Value;
 
@@ -242,13 +241,13 @@ namespace EA4T.SteadyBear.Packager
                 }
                 else if ("Info".Equals(key, StringComparison.Ordinal))
                 {
-                    return WebUtility.HtmlEncode(string.Format(CultureInfo.InvariantCulture, "This document was generated automatically from file \"{0}\" on {1:o} using the MarkdownToHtmlTask tool. Manual modifications will be lost next time this file is generated again. ", fileName, DateTime.UtcNow));
+                    return WebUtility.HtmlEncode(string.Format(CultureInfo.InvariantCulture, "This document was generated automatically from file \"{0}\" on {1:o} using the Airudit.MdBook tool. Manual modifications will be lost next time this file is generated again. ", fileName, DateTime.UtcNow));
                 }
                 else
                 {
                     return string.Empty;
                 }
-            }));
+            });
 
             // write HTML file
             using (var targetStream = new FileStream(item.TargetFile.FullName, FileMode.Create, FileAccess.Write, FileShare.None))
@@ -259,12 +258,6 @@ namespace EA4T.SteadyBear.Packager
                     writer.Flush();
                 }
             }
-        }
-
-        internal SimpleMarkdownToHtmlTask SetProfile(string profile)
-        {
-            this.profile = profile;
-            return this;
         }
 
         private string MakePathUniform(string path, char dsc)
@@ -298,6 +291,10 @@ namespace EA4T.SteadyBear.Packager
                 {
                     this.EnhanceDom(context, block);
                 }
+                else
+                {
+                    // something is wrong here
+                }
             }
         }
 
@@ -327,8 +324,7 @@ namespace EA4T.SteadyBear.Packager
                         continue;
                     }
 
-                    Uri uri;
-                    if (link.Url != null && Uri.TryCreate(link.Url, UriKind.Relative, out uri))
+                    if (link.Url != null && Uri.TryCreate(link.Url, UriKind.Relative, out Uri? uri))
                     {
                         if (MyExtensions.IsInvalidFileRelativePath(link.Url))
                         {
@@ -409,6 +405,22 @@ namespace EA4T.SteadyBear.Packager
             }
 
             return result.ToArray();
+        }
+
+        private string ReadTemplateFromAssembly(Assembly assembly, string path)
+        {
+            using (var templateStream = assembly.GetManifestResourceStream(path))
+            {
+                if (templateStream == null)
+                {
+                    throw new InvalidOperationException("No such built-in template " + path);
+                }
+
+                using (var templateReader = new StreamReader(templateStream, Encoding.UTF8))
+                {
+                    return templateReader.ReadToEnd();
+                }
+            }
         }
     }
 }

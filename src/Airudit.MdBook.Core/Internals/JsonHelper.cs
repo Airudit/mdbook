@@ -1,7 +1,7 @@
-﻿
+// code copied from https://gist.github.com/sandrock/848aecdcb6283b2e64837ff5c8e3d2ed
+
 namespace Airudit.MdBook.Core.Internals
 {
-    using Airudit.Promethai.Domain.Core.Internals;
     using Newtonsoft.Json.Linq;
     using System;
     using System.Collections;
@@ -111,7 +111,7 @@ namespace Airudit.MdBook.Core.Internals
             {
                 throw this.Fail("Null element. ");
             }
-            else if (element.TryGetValue(name, out JToken? child))
+            else if (element.TryGetValue(name, out JToken child))
             {
                 var valueElement = child as JValue;
                 if (valueElement != null && valueElement.Type == JTokenType.Null)
@@ -120,7 +120,7 @@ namespace Airudit.MdBook.Core.Internals
                 }
                 else if (valueElement != null && valueElement.Type == JTokenType.String)
                 {
-                    var stringValue = (string?)valueElement.Value;
+                    var stringValue = (string)valueElement.Value;
                     if (string.IsNullOrEmpty(stringValue))
                     {
                         return defaultValue ?? throw this.Fail("Element[" + name + "] has no value. ");
@@ -165,6 +165,16 @@ namespace Airudit.MdBook.Core.Internals
             return this.GetValue<Int32>(element, name, this.Parse);
         }
 
+        public Double? GetNullableDouble(JObject element, string name)
+        {
+            return this.GetNullableValue<Double>(element, name, this.Parse, default(Double?));
+        }
+
+        public Double? GetDouble(JObject element, string name)
+        {
+            return this.GetValue<Double>(element, name, this.Parse);
+        }
+
         /// <summary>
         /// Returns a string property. May return NULL.
         /// </summary>
@@ -172,13 +182,13 @@ namespace Airudit.MdBook.Core.Internals
         /// <param name="name"></param>
         /// <returns></returns>
         /// <exception cref="InvalidOperationException">when property is not of string type</exception>
-        public string? GetString(JObject element, string name)
+        public string GetString(JObject element, string name)
         {
             if (element == null)
             {
                 throw this.Fail("Null element. ");
             }
-            else if (element.TryGetValue(name, out JToken? child))
+            else if (element.TryGetValue(name, out JToken child))
             {
                 var valueElement = child as JValue;
                 if (valueElement != null && valueElement.Type == JTokenType.Null)
@@ -685,6 +695,42 @@ namespace Airudit.MdBook.Core.Internals
                 if (!string.IsNullOrWhiteSpace(value))
                 {
                     if (Int32.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out result))
+                    {
+                        return ParseResult.Ok;
+                    }
+                    
+                    return ParseResult.Invalid;
+                }
+                else
+                {
+                    return ParseResult.Empty;
+                }
+            }
+            else
+            {
+                return ParseResult.InvalidNodeType;
+            }
+        }
+
+        private ParseResult Parse(string name, JValue node, out Double result)
+        {
+            result = default(Double);
+            if (node.Type == JTokenType.Integer)
+            {
+                result = (double)(Int64)node.Value!;
+                return ParseResult.Ok;
+            }
+            else if (node.Type == JTokenType.Float)
+            {
+                result = (double)node.Value!;
+                return ParseResult.Ok;
+            }
+            else if (node.Type == JTokenType.String)
+            {
+                var value = (string)node.Value;
+                if (!string.IsNullOrWhiteSpace(value))
+                {
+                    if (Double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out result))
                     {
                         return ParseResult.Ok;
                     }
