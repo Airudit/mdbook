@@ -1,0 +1,93 @@
+﻿<!DOCTYPE html>
+<html lang="{{{Lang}}}" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta charset="utf-8" />
+<!-- {{{Info}}} -->
+<title>{{{PageTitle}}}</title>
+<style>
+    /* Stylesheet optimized for screen reading and print. Edit with care. */
+    body {
+        background: #e3e3e3; color: #242323;
+        /*background: #f7f7f7; color: #303030;*/
+        font-family: 'Lucida Sans', 'Lucida Sans Regular', 'Lucida Grande', 'Lucida Sans Unicode', Geneva, Verdana, sans-serif;
+        margin: 0; padding:0;
+    }
+
+    a { color: #58B7D8; text-decoration: underline; }
+    a:link {  color: #58B7D8; text-decoration: underline; }
+    a:visited { color: #3897B8; text-decoration: underline; }
+    a:hover { color: #68C7E8; text-decoration: underline; }
+    a:active { color: #560DB3; }
+    a.external:after { content: "\1f86d"; color: #242323; }
+    p, ul, ol { margin: 0; padding: 0; margin-top: 10px; margin-bottom: 10px; line-height: 1.6em; }
+    ul, ol { padding: 0 0 0 1em; }
+    li { margin-left: 14px; }
+    ol > li { list-style-type: decimal; }
+    ol ol > li { list-style-type: lower-alpha; }
+    ol ol ol > li { list-style-type: lower-roman; }
+    ul > li { list-style-type: disc; }
+    ul ul > li { list-style-type: circle; }
+    ul ul ul > li { list-style-type: square; }
+    ul.no-ul > li { list-style-type: none; margin-left: 0; }
+    header, footer, nav, section { display: block; }
+    h1, h2, h3, h4, h5, h6 { margin: 0; padding: 0; font-size: 1.5em; color: #e60f47; }
+    h1 { padding: 60px 0 0    0; font-size: 2.2em; margin-bottom: 0; }
+    @media print { h1 { padding: 40px 0 0    0; } }
+    h2 { padding: 60px 0 5px  0; font-size: 1.5em; border-bottom: 1px solid #e60f47; margin-bottom: 20px; }
+    @media print { h2 { padding: 40px 0 5px  0; } }
+    h3 { padding: 40px 0 5px  0; font-size: 1.4em; border-bottom: 1px dashed #e60f47; margin-bottom: 20px; }
+    h4 { padding: 20px 0 10px 0; font-size: 1.2em; }
+    h5 { padding: 20px 0 10px 0; font-size: 1.1em; }
+    h6 { padding: 20px 0 10px 0; font-size: 1em; }
+    pre, code { font-family: Consolas, Courier New, Courier, monospace; color: #8a7b00; }
+    pre { margin: 1.5em 2em; color: #8a7b00; }
+
+    article            { margin: 2em 0 4em 0; padding: 10px 20px; }
+    article            { background: #f0f0f0; border: solid #D9D9D9 ; border-width: 0 1px; font-size: 90%; }
+    header, footer     { margin:0; padding: 10px 20px; background: #C8C8C8; }
+    header > .contents,
+    footer > .contents { margin: 0 auto 0 auto; max-width: 72em; }
+    @media print {
+        header > .contents,
+        footer > .contents { margin: 0 auto 0 auto; max-width: unset; }
+    }
+    header h1          { padding: 0; }
+    footer p           { font-size: .666em; color: #393939; }
+    @media print { footer p { color: #393939; } }
+    footer p.info      { font-size: .666em; }
+    footer p.copyright { font-size: .8em; }
+    .HelpCenter        { background: #e3e3e3; }
+    .HelpCenterContent { margin:0 auto 0 auto; max-width: 80em; }
+    @media print {
+        .HelpCenterContent { max-width: unset; }
+    }
+
+    @media screen { .HelpCenterContent { padding-bottom: 200px; } }
+    .HelpCenterContent p > img { border: #FEFEFE 0px solid; border-style: inset; margin: .5em; box-shadow: 0px 0px 5px 6px #202020; max-width: 96%; }
+    .HelpCenterContent blockquote { background: #d2d2c1; margin:  1em auto; padding: 0.8em 1em; }
+    @media print { .HelpCenterContent blockquote { border-left: .3em solid #242323; } }
+    .HelpCenterContent blockquote p { }
+    .HelpCenterContent li > blockquote { margin: 0.2em 0; padding: 0.1em 1em; }
+</style>
+</head>
+<body class="HelpCenter">
+    <header>
+        <div class="contents">
+            <h1>{{{PageTitle}}}</h1>
+        </div>
+    </header>
+    <div class="HelpCenter">
+        <div class="HelpCenterContent">
+{{{Contents}}}
+        </div>
+    </div>
+    <footer>
+        <div class="contents info">
+            <p>{{{Info}}} This document is printable; but think before printing. Adjust print settings (duplex, ink economy) to reduce paper and ink consumption. </p>
+        </div>
+        <div class="contents copyright">
+            <p>{{{Copyright}}}</p>
+        </div>
+    </footer>
+</body>
+</html>

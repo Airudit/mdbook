@@ -62,7 +62,24 @@ namespace EA4T.SteadyBear.Packager
                 .Build();
 
             // prepare template
-            if (this.layer.TemplateFilePath != null)
+            const string builtinPrefix = "builtin:";
+            if (this.layer.TemplateFilePath != null && this.layer.TemplateFilePath.StartsWith(builtinPrefix, StringComparison.InvariantCulture))
+            {
+                var path = "Airudit.MdBook.Core.res." + this.layer.TemplateFilePath.Substring(builtinPrefix.Length); 
+                using (var templateStream = typeof(SimpleMarkdownToHtmlTask).Assembly.GetManifestResourceStream(path))
+                {
+                    if (templateStream == null)
+                    {
+                        throw new InvalidOperationException("No such built-in template " + path);
+                    }
+
+                    using (var templateReader = new StreamReader(templateStream!, Encoding.UTF8))
+                    {
+                        this.layer.Template = templateReader.ReadToEnd();
+                    }
+                }
+            }
+            else if (this.layer.TemplateFilePath != null)
             {
                 using (var templateStream = new FileStream(this.layer.TemplateFilePath, FileMode.Open, FileAccess.Read, FileShare.Read))
                 using (var templateReader = new StreamReader(templateStream!, Encoding.UTF8))
@@ -72,7 +89,7 @@ namespace EA4T.SteadyBear.Packager
             }
             else
             {
-                using (var templateStream = typeof(SimpleMarkdownToHtmlTask).Assembly.GetManifestResourceStream("Airudit.MdBook.Core.res.default.dark.html"))
+                using (var templateStream = typeof(SimpleMarkdownToHtmlTask).Assembly.GetManifestResourceStream("Airudit.MdBook.Core.res.default.light.html"))
                 using (var templateReader = new StreamReader(templateStream!, Encoding.UTF8))
                 {
                     this.layer.Template = templateReader.ReadToEnd();
@@ -242,7 +259,7 @@ namespace EA4T.SteadyBear.Packager
                 }
                 else if ("Info".Equals(key, StringComparison.Ordinal))
                 {
-                    return WebUtility.HtmlEncode(string.Format(CultureInfo.InvariantCulture, "This document was generated automatically from file \"{0}\" on {1:o} using the MarkdownToHtmlTask tool. Manual modifications will be lost next time this file is generated again. ", fileName, DateTime.UtcNow));
+                    return WebUtility.HtmlEncode(string.Format(CultureInfo.InvariantCulture, "This document was generated automatically from file \"{0}\" on {1:o} using the Airudit.MdBook tool. Manual modifications will be lost next time this file is generated again. ", fileName, DateTime.UtcNow));
                 }
                 else
                 {

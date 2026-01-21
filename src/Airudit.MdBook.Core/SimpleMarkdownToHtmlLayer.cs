@@ -21,6 +21,9 @@ namespace EA4T.SteadyBear.Packager
 
         public MarkdownPipeline Pipeline { get; internal set; }
 
+        /// <summary>
+        /// The contents of the HTML template file.
+        /// </summary>
         public string Template { get; internal set; }
 
         /// <summary>
@@ -34,7 +37,7 @@ namespace EA4T.SteadyBear.Packager
         public List<SimpleMarkdownToHtmlLayerExport> Exports { get; } = new List<SimpleMarkdownToHtmlLayerExport>();
 
         public string SingleFile { get; set; }
-        
+
         public string TemplateFilePath { get; set; }
         
         public string? Copyright { get; set; }

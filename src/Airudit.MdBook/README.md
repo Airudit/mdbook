@@ -53,6 +53,17 @@ Options:
     --Template <file>     Specifies the HTML template file
 ```
 
+Built-in templates: 
+
+- `--Template builtin:default.light.html` (default)
+- `--Template builtin:default.dark.html`
+
+## Code
+
+```bash
+dotnet run -v q --framework net8.0 --project src/Airudit.MdBook -- --help
+```
+
 ## More info
 
 [Airudit.MdBook](https://github.com/Airudit/mdbook) project
