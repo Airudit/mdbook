@@ -4,6 +4,8 @@ mdbook
 
 turns a collection a markdown files into a (digital) book
 
+nuget: `Airudit.MdBook` at [nuget.org](https://www.nuget.org/packages/Airudit.MdBook)
+
 Machine install (global)
 ------------------------------------
 
