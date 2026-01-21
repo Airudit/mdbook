@@ -1,5 +1,5 @@
 
-namespace System
+namespace Airudit.MdBook.Core.Internals
 {
     using System.Globalization;
 

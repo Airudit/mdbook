@@ -2,7 +2,6 @@
 namespace Airudit.MdBook.Core
 {
     using Airudit.MdBook.Core.Internals;
-    using Somewhere;
     using System;
     using System.Collections.Generic;
     using System.IO;

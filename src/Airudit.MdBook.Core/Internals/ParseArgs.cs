@@ -1,5 +1,5 @@
 
-namespace Somewhere
+namespace Airudit.MdBook.Core.Internals
 {
     using System;
     using System.Collections;
