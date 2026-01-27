@@ -125,7 +125,7 @@ We use this at [Airudit](https://www.airudit.com/) to bundle documentation files
 
 If you need a different template, feel free to create one based on [the built-in ones](https://github.com/Airudit/mdbook/tree/main/src/Airudit.MdBook.Core/res).
 
-To use a code library, you can use this basic code:
+To use a code library, you can use this basic code (see [unit test](src/Airudit.MdBook.UnitTests/UseAsCodeLibrary.cs)):
 
 ```csharp
 using Airudit.MdBook.Core;
@@ -147,7 +147,7 @@ public static void SimpleMdToHtml(string inputFilePath, string? templateFilePath
     var simpleConverterTask = new SimpleMarkdownToHtmlTask();
     simpleConverterTask.Visit(context);
 
-    // this generates the file
+    // generate the file
     simpleConverterTask.Run(context);
 }
 ```
