@@ -40,8 +40,6 @@ namespace Airudit.MdBook.Core
                 throw new InvalidOperationException("Cannot run this task twice. ");
             }
 
-            var interactor = context.RequireSingleLayer<CommandLineLayer>();
-
             this.layer = context.RequireSingleLayer<SimpleMarkdownToHtmlLayer>();
             if (this.layer == null)
             {
@@ -104,8 +102,8 @@ namespace Airudit.MdBook.Core
 
         private void ProcessFileMarkdown(PackageContext context, SimpleMarkdownToHtmlLayerItem item)
         {
-            var interactor = context.RequireSingleLayer<CommandLineLayer>();
-            interactor.Out.WriteLine("Processing markdown file \"" + item.SourceFile + "\". ");
+            var interactor = context.GetSingleLayer<CommandLineLayer>();
+            interactor?.Out?.WriteLine("Processing markdown file \"" + item.SourceFile + "\". ");
 
             // prepare
             var title = Path.GetFileNameWithoutExtension(item.SourceFile.Name);
