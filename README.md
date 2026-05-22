@@ -7,45 +7,8 @@ turns a collection a markdown/commonmark files into a (digital) book
 - nuget `Airudit.MdBook` is the dotnet tool at [nuget.org](https://www.nuget.org/packages/Airudit.MdBook)
 - nuget `Airudit.MdBook.Core` is the code library at [nuget.org](https://www.nuget.org/packages/Airudit.MdBook.Core)
 
-Use cases
+Usage
 ------------------------------------
-
-Make HTML files from MD files now:
-
-```
-mdbook    my.md dir/*.md other-dir/
-```
-
-Make HTML files from local MD files in a dedicated directory:
-
-```
-mdbook    .         --export ~/docs/
-```
-
-Make a single HTML file from all MD in directory docs:
-
-```
-mdbook     docs/    --single-file docs.html
-```
-
-You can also do all this using C# by adding a PackageReference to the code library.
-
-
-Machine install (global)
-------------------------------------
-
-Install command:
-
-```
-dotnet tool install -g Airudit.MdBook
-```
-
-> You can invoke the tool using the following command: mdbook  
-Tool 'airudit.mdbook' (version '0.1.2') was successfully installed.
-
-See also: [how to manage and use .NET tools](https://learn.microsoft.com/en-us/dotnet/core/tools/global-tools) [dotnet tool install troubleshooting](https://learn.microsoft.com/en-us/dotnet/core/tools/troubleshoot-usage-issues)
-
-Use command:
 
 ```
 mdbook --help
@@ -70,9 +33,70 @@ Built-in templates:
     --Template builtin:default.dark.html    
 ```
 
+Make HTML files from MD files now:
 
-Use during CI
+```
+mdbook    my.md dir/*.md other-dir/
+```
+
+Make HTML files from local MD files in a dedicated directory:
+
+```
+mdbook    .         --export ~/docs/
+```
+
+Make a single HTML file from all MD in directory docs:
+
+```
+mdbook     docs/    --single-file docs.html
+```
+
+You can also do all this using C# by adding a PackageReference to the code library.
+
+
+Install options
 ------------------------------------
+
+### Install from binary release
+
+For non-developer use. The script installs .NET if needed.
+
+**Linux** — one-liner:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Airudit/mdbook/refs/heads/main/packages/install.sh | bash
+```
+
+**Windows** — open PowerShell:
+
+```powershell
+irm https://raw.githubusercontent.com/Airudit/mdbook/refs/heads/main/packages/install.ps1 | iex
+```
+
+Both install `mdbook` and write an `mdbook-update` command for future updates.
+
+Verify the install:
+
+```
+mdbook --help
+```
+
+
+### Machine install (global)
+
+For developers with the .NET SDK installed:
+
+```
+dotnet tool install -g Airudit.MdBook
+```
+
+> You can invoke the tool using the following command: mdbook  
+Tool 'airudit.mdbook' (version '0.1.2') was successfully installed.
+
+See also: [how to manage and use .NET tools](https://learn.microsoft.com/en-us/dotnet/core/tools/global-tools), [dotnet tool install troubleshooting](https://learn.microsoft.com/en-us/dotnet/core/tools/troubleshoot-usage-issues)
+
+
+### Use during CI
 
 In your repository: make a project local install with:
 
@@ -114,6 +138,32 @@ To run, use:
 ```bash
 dotnet run -v q --framework net8.0 --project src/Airudit.MdBook -- --help
 ```
+
+
+Releasing
+------------------------------------
+
+Publishing is handled by the `publish` GitHub Actions workflow (`.github/workflows/publish.yml`), triggered when a GitHub Release is published.
+
+**What gets published:**
+
+- `Airudit.MdBook` NuGet package (dotnet global tool) → nuget.org
+- `Airudit.MdBook.Core` NuGet package (code library) → nuget.org
+- `mdbook-{version}-linux-x64.tar.gz` → attached to the GitHub Release
+- `mdbook-{version}-win-x64.zip` → attached to the GitHub Release
+
+**Steps to release:**
+
+1. Push all changes to `main`
+2. Create and push a version tag: `git tag v1.2.3 && git push origin v1.2.3`
+3. On GitHub, create a Release from that tag — this triggers the workflow
+4. The workflow builds, tests, and publishes everything automatically
+
+The version is derived from the git tag via [MinVer](https://github.com/adamralph/minver). The tag must start with `v` (e.g. `v1.2.3`).
+
+The binary release assets target `net8.0` and are framework-dependent (require .NET 8 on the target machine).
+
+Required secret: `NUGETAIRUDIT` (NuGet API key with push rights).
 
 
 More information
