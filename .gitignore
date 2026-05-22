@@ -3,7 +3,6 @@
 .vs/
 [Bb]in/
 [Oo]bj/
-packages/
 TestResults/
 package-lock.json
 *.snk
@@ -23,3 +22,13 @@ AnalysisReport.sarif
 /tmp/
 
 *.md.html
+
+/claude.env
+
+/claude.Dockerfile
+
+/claude.docker-compose.yml
+
+/claude-*
+
+/.claude*

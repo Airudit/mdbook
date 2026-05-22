@@ -76,11 +76,15 @@
     }
 
     @media screen { .HelpCenterContent { padding-bottom: 200px; } }
+    @media print  { .HelpCenterContent { padding-bottom: 20px; } }
     .HelpCenterContent p > img { border: #FEFEFE 0px solid; border-style: inset; margin: .5em; box-shadow: 0px 0px 5px 6px #202020; max-width: 96%; }
     .HelpCenterContent blockquote { background: #d2d2c1; margin:  1em auto; padding: 0.8em 1em; }
     @media print { .HelpCenterContent blockquote { border-left: .3em solid #242323; } }
     .HelpCenterContent blockquote p { }
     .HelpCenterContent li > blockquote { margin: 0.2em 0; padding: 0.1em 1em; }
+
+    @media screen { hr { margin: 5em 0; } }
+    @media print  { hr { break-after: always; display: none; } }
 </style>
 </head>
 <body class="HelpCenter">
