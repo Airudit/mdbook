@@ -84,7 +84,7 @@ curl -fsSL https://raw.githubusercontent.com/Airudit/mdbook/refs/heads/main/pack
 
 ```powershell
 # PowerShell
-& ([scriptblock]::Create((irm https://raw.githubusercontent.com/Airudit/mdbook/refs/heads/main/packages/install.ps1))) -Help
+$f="$env:TEMP\mdbook-install.ps1"; irm https://raw.githubusercontent.com/Airudit/mdbook/refs/heads/main/packages/install.ps1 -OutFile $f; & $f -Help; del $f
 ```
 
 Verify the install:

@@ -24,7 +24,6 @@
 .EXAMPLE
     .\install.ps1 -User -Yes
 #>
-[CmdletBinding()]
 param(
     [switch]$System,
     [switch]$User,
@@ -121,6 +120,8 @@ function Test-DotNet {
 }
 
 $NeedDotNet = -not (Test-DotNet)
+if ($NeedDotNet) { Info ".NET $DotNetVersion runtime not found — will be installed." }
+else             { Info ".NET $DotNetVersion runtime found." }
 
 # ── fetch latest release info ─────────────────────────────────────────────────
 
@@ -171,10 +172,6 @@ if ($Prerelease) { Write-Host "  Channel: pre-release" }
 if ($System)     { Write-Host "  Mode:    system" } else { Write-Host "  Mode:    user" }
 Write-Host "  Install: $LibDir\"
 Write-Host "  Commands: mdbook, mdbook-update"
-if ($NeedDotNet) {
-    Write-Host ""
-    Write-Host "  .NET $DotNetVersion runtime not found — will be installed."
-}
 Write-Host ""
 
 if (-not $Yes) {

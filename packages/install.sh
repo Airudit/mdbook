@@ -85,7 +85,12 @@ has_dotnet() {
 }
 
 NEED_DOTNET=false
-has_dotnet || NEED_DOTNET=true
+if has_dotnet; then
+    info ".NET ${DOTNET_VERSION} runtime found."
+else
+    NEED_DOTNET=true
+    info ".NET ${DOTNET_VERSION} runtime not found — will be installed."
+fi
 
 # ── fetch latest release info ─────────────────────────────────────────────────
 
@@ -141,10 +146,6 @@ else
 fi
 echo "  Install: $LIB_DIR/"
 echo "  Commands: mdbook, mdbook-update"
-if $NEED_DOTNET; then
-    echo ""
-    echo "  .NET ${DOTNET_VERSION} runtime not found — will be installed."
-fi
 echo ""
 
 if ! $YES; then
