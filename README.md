@@ -75,6 +75,18 @@ irm https://raw.githubusercontent.com/Airudit/mdbook/refs/heads/main/packages/in
 
 Both install `mdbook` and write an `mdbook-update` command for future updates.
 
+To pass arguments (e.g. see all options), use the scriptblock form instead of `irm | iex`:
+
+```bash
+# bash
+curl -fsSL https://raw.githubusercontent.com/Airudit/mdbook/refs/heads/main/packages/install.sh | bash -s -- --help
+```
+
+```powershell
+# PowerShell
+& ([scriptblock]::Create((irm https://raw.githubusercontent.com/Airudit/mdbook/refs/heads/main/packages/install.ps1))) -Help
+```
+
 Verify the install:
 
 ```

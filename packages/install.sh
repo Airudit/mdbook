@@ -220,6 +220,7 @@ if [ "$MODE" = system ]; then
     elevate rm -rf "$LIB_DIR"
     elevate mkdir -p "$LIB_DIR" "$BIN_DIR"
     elevate tar -xzf "$TARBALL" -C "$LIB_DIR" --strip-components=1
+    elevate chmod +x "$LIB_DIR/$APP_NAME"
     elevate ln -sf "$LIB_DIR/$APP_NAME" "$BIN_DIR/$APP_NAME"
     UPDATE_ARGS="--system --yes"
     $PRERELEASE && UPDATE_ARGS="$UPDATE_ARGS --prerelease"
@@ -232,6 +233,7 @@ else
     rm -rf "$LIB_DIR"
     mkdir -p "$LIB_DIR" "$BIN_DIR"
     tar -xzf "$TARBALL" -C "$LIB_DIR" --strip-components=1
+    chmod +x "$LIB_DIR/$APP_NAME"
     ln -sf "$LIB_DIR/$APP_NAME" "$BIN_DIR/$APP_NAME"
     UPDATE_ARGS="--user --yes"
     $PRERELEASE && UPDATE_ARGS="$UPDATE_ARGS --prerelease"

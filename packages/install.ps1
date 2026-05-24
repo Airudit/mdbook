@@ -15,8 +15,12 @@
     Install the latest pre-release instead of stable.
 .PARAMETER Yes
     Skip confirmation prompt (for scripted use).
+.PARAMETER Help
+    Show this help message.
 .EXAMPLE
     irm https://raw.githubusercontent.com/Airudit/mdbook/refs/heads/main/packages/install.ps1 | iex
+.EXAMPLE
+    & ([scriptblock]::Create((irm https://raw.githubusercontent.com/Airudit/mdbook/refs/heads/main/packages/install.ps1))) -User -Yes
 .EXAMPLE
     .\install.ps1 -User -Yes
 #>
@@ -25,8 +29,15 @@ param(
     [switch]$System,
     [switch]$User,
     [switch]$Prerelease,
-    [switch]$Yes
+    [switch]$Yes,
+    [switch]$Help
 )
+
+# TLS 1.2 required for GitHub — PowerShell 5 defaults to TLS 1.0
+if ($PSVersionTable.PSVersion.Major -le 5) {
+    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+}
+
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
@@ -37,8 +48,38 @@ $ScriptUrl     = 'https://raw.githubusercontent.com/Airudit/mdbook/refs/heads/ma
 
 # ── helpers ──────────────────────────────────────────────────────────────────
 
-function Die([string]$msg) { Write-Host "ERROR: $msg" -ForegroundColor Red; exit 1 }
+$script:_dieHandled = $false
+function Die([string]$msg) {
+    Write-Host "ERROR: $msg" -ForegroundColor Red
+    $script:_dieHandled = $true
+    throw $msg
+}
 function Info([string]$msg) { Write-Host "  $msg" }
+
+# ── help ──────────────────────────────────────────────────────────────────────
+
+if ($Help) {
+    Write-Host "Usage: install.ps1 [OPTIONS]"
+    Write-Host ""
+    Write-Host "Install or update mdbook."
+    Write-Host ""
+    Write-Host "Options:"
+    Write-Host "  -System      Install system-wide to C:\Program Files\ (requires administrator)"
+    Write-Host "  -User        Install for the current user to %LOCALAPPDATA%\"
+    Write-Host "  -Prerelease  Install the latest pre-release instead of stable"
+    Write-Host "  -Yes         Skip confirmation prompt (for scripted use)"
+    Write-Host "  -Help        Show this help message"
+    Write-Host ""
+    Write-Host "Without -System or -User, the mode is auto-detected:"
+    Write-Host "  running as administrator -> system install, otherwise -> user install."
+    Write-Host ""
+    Write-Host "After install, use 'mdbook-update' to update."
+    return
+}
+
+# ── main ──────────────────────────────────────────────────────────────────────
+
+try {
 
 # ── mode detection ────────────────────────────────────────────────────────────
 
@@ -138,7 +179,7 @@ Write-Host ""
 
 if (-not $Yes) {
     $reply = Read-Host "Continue? [Y/n]"
-    if ($reply -match '^[nN]') { Write-Host "Aborted."; exit 0 }
+    if ($reply -match '^[nN]') { Write-Host "Aborted."; return }
 }
 
 # ── step 1: .NET runtime ──────────────────────────────────────────────────────
@@ -216,3 +257,9 @@ if ($currentPath -notlike "*$LibDir*") {
 Write-Host ""
 Write-Host "Done. Run: mdbook --help"
 Write-Host "Note: restart your terminal for PATH changes to take effect."
+
+} catch {
+    if (-not $script:_dieHandled) {
+        Write-Host "ERROR: $_" -ForegroundColor Red
+    }
+}

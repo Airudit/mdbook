@@ -146,6 +146,7 @@ jobs:
       - name: Build tarball
         run: |
           VERSION="${{ steps.version.outputs.version }}"
+          chmod +x dist/publish/mdbook
           mkdir -p dist
           tar -czf "dist/mdbook-${VERSION}-linux-x64.tar.gz" \
             -C dist/publish \
