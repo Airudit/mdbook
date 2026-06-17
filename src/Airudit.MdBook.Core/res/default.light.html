@@ -84,7 +84,23 @@
     .HelpCenterContent li > blockquote { margin: 0.2em 0; padding: 0.1em 1em; }
 
     @media screen { hr { margin: 5em 0; } }
-    @media print  { hr { break-after: always; display: none; } }
+    @media print  { hr { height: 0; margin: 0; border: 0; break-after: page; page-break-after: always; } }
+
+    /* Familiar printed-document scale. The `html` font-size below is the single knob:
+       lower it for smaller print, raise it for larger. Heading sizes are in rem so they scale with it. */
+    @media print {
+        @page { size: A4; margin: 14mm 16mm; }
+        html { font-size: 9.5pt; }
+        body { line-height: 1.4; }
+        article { font-size: 1rem; }
+        h1 { font-size: 1.85rem; padding: 1em 0 0 0; }
+        h2 { font-size: 1.4rem;  padding: 1em 0 .3em 0; }
+        h3 { font-size: 1.2rem;  padding: .9em 0 .3em 0; }
+        h4 { font-size: 1.08rem; padding: .7em 0 .4em 0; }
+        h5, h6 { font-size: 1rem; padding: .6em 0 .4em 0; }
+        pre, code, kbd, samp { font-size: .85rem; }
+        h1, h2, h3, h4, h5, h6 { break-after: avoid; break-inside: avoid; }
+    }
 </style>
 </head>
 <body class="HelpCenter">
