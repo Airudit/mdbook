@@ -26,10 +26,15 @@ Option names are case-insensitive (`--export` and `--Export` are equal).
 - `--Export <dir>` — copy the generated HTML into `<dir>`, preserving each file's
   relative path. Files you linked to that are not Markdown (images, downloads)
   are copied along too. May be given more than once to export to several
-  locations.
-- `--Single-File <file>` — in addition to the per-file output, combine every
-  rendered page into one HTML file at `<file>`, prefixed with a table of contents
-  linking to each page.
+  locations. On its own this writes only into `<dir>` — the in-place files next
+  to the sources are suppressed (see `--Side`).
+- `--Single-File <file>` — combine every rendered page into one HTML file at
+  `<file>`, prefixed with a table of contents linking to each page. On its own
+  this writes only the single file — the in-place files are suppressed (see
+  `--Side`).
+- `--Side` — also write each page's HTML in place, next to its source file. The
+  in-place files are written by default, but are suppressed once `--Export` or
+  `--Single-File` is given; pass `--Side` to keep writing them as well.
 - `--Template <file>` — use `<file>` as the HTML template instead of the built-in
   one. Accepts a path, or a `builtin:` name (see below). Details in
   [Templates and placeholders](templates.en.md).
@@ -64,6 +69,12 @@ Build one combined HTML file from every page in `docs/`:
 mdbook docs/ --Single-File docs.html
 ```
 
+Build the combined file but keep the per-page files next to the sources too:
+
+```bash
+mdbook docs/ --Single-File docs.html --Side
+```
+
 Render with the dark built-in template:
 
 ```bash
@@ -91,10 +102,13 @@ dotnet mdbook help/ README.md
 What gets written
 ----------------------------------------------------------------
 
-- For every input `X.md`, a file `X.md.html` next to the source.
+- By default, for every input `X.md`, a file `X.md.html` is written next to the
+  source.
+- Giving an output destination changes where the pages go: `--Export <dir>`
+  writes them into `<dir>` (preserving relative paths), and `--Single-File <file>`
+  merges them into one document. Either one suppresses the in-place `X.md.html`
+  files; add `--Side` to write those as well.
 - Local `.md` links inside the content are rewritten to `.md.html` so the
   rendered book stays navigable.
 - Links to external URLs (`http`, `https`, `ftp`) get a `class="external"` so a
   template can style them.
-- With `--Export`, the above are copied into the export tree; with
-  `--Single-File`, they are also merged into one document.
