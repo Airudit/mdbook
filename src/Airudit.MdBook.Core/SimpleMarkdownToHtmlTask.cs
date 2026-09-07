@@ -215,11 +215,12 @@ namespace Airudit.MdBook.Core
 
             // substitute HTML template variables
             // don't forget to HTML-escape strings!
-            // known variables are: 
+            // known variables are:
             // - {{{PageTitle}}}  the title for the page
             // - {{{Contents}}}   the markdown-converted HTML part
             // - {{{Lang}}}       the page's lang
             // - {{{Info}}}       a information string
+            // - {{{Copyright}}}  the --Copyright notice
             var page = replacer.Replace(this.layer.Template, match =>
             {
                 var key = match.Groups[1].Value;
@@ -239,6 +240,10 @@ namespace Airudit.MdBook.Core
                 else if ("Info".Equals(key, StringComparison.Ordinal))
                 {
                     return WebUtility.HtmlEncode(string.Format(CultureInfo.InvariantCulture, "This document was generated automatically from file \"{0}\" on {1:o} using the Airudit.MdBook tool. Manual modifications will be lost next time this file is generated again. ", fileName, DateTime.UtcNow));
+                }
+                else if ("Copyright".Equals(key, StringComparison.Ordinal))
+                {
+                    return WebUtility.HtmlEncode(this.layer.Copyright ?? string.Empty);
                 }
                 else
                 {
