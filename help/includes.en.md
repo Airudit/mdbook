@@ -16,6 +16,8 @@ Syntax
 Where the directive appears, `mdbook` splices in the raw text of the referenced
 file, then renders the combined document as one. Rules:
 
+- Put the directive on its **own line**. It pulls in block-level content
+  (headings, lists, paragraphs), so it is not meant to sit inside a sentence.
 - The path is resolved **relative to the file that contains the directive**.
 - A leading slash is allowed and simply ignored: `{{include: /part.md}}` and
   `{{include: part.md}}` mean the same thing.
@@ -62,3 +64,10 @@ breaks.
 Until this is fixed, prefer links that do not depend on the including file's
 location: link with paths relative to the *final* page, or use absolute URLs. This
 is tracked as issue #7 in the project tracker.
+
+Known limitation — nested includes
+----------------------------------------------------------------
+
+Includes are resolved one level deep. An `{{include: …}}` directive that appears
+*inside* an included file is left as-is, not expanded: a page may include parts,
+but those parts cannot themselves pull in further parts.
