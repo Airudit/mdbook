@@ -24,6 +24,7 @@ namespace Airudit.MdBook.Core
         private static readonly JsonHelper json = new JsonHelper(string.Empty);
         private static readonly Regex replacer = new Regex(@"\{\{\{([^}]+)\}\}\}", RegexOptions.Compiled);
         private static readonly Regex linksRegex = new Regex(@"<a href=""([^""]+)"">", RegexOptions.Compiled);
+        private static readonly Regex includeLineRegex = new Regex(@"(?m)^[ \t]*\{\{include: *([/a-zA-Z0-9 ()+='"",.?_-]+)\}\}[ \t]*$", RegexOptions.Compiled);
         private static readonly char[] directorySeparators = new char[] { '/', '\\', };
         private string? profile;
         private SimpleMarkdownToHtmlLayer? layer;
@@ -128,76 +129,16 @@ namespace Airudit.MdBook.Core
                 }
             }
 
-            // read markdown file
-            string text;
-            using (var sourceStream = new FileStream(item.SourceFile.FullName, FileMode.Open, FileAccess.Read, FileShare.Read))
-            using (var reader = new StreamReader(sourceStream, Encoding.UTF8))
-            {
-                text = reader.ReadToEnd();
-            }
-
-            // include markdown parts
-            var includeRegex = new Regex(@"\{\{(include: *)([/a-zA-Z0-9 ()+='"",.?_-]+)\}\}", RegexOptions.None);
-            text = includeRegex.Replace(text, m =>
-            {
-                var origValue = m.Value;
-                var value = origValue;
-                var contents = new StringBuilder();
-
-                var command = m.Groups[1].Value;
-                if (command.StartsWith("include:", StringComparison.Ordinal))
-                {
-                    var path = m.Groups[2].Value;
-                    if (!string.IsNullOrEmpty(path))
-                    {
-                        if (path.Length >= 1 && path[0] == '/')
-                        {
-                            path = path.Substring(1);
-                        }
-
-                        var fullPath = Path.Combine(item.SourceFile.DirectoryName, path);
-                        var doc = new FileInfo(fullPath);
-                        if (!doc.Exists)
-                        {
-                            contents.Append("\n<!-- " + origValue + ": NO SUCH FILE -->\n");
-                        }
-                        else if (path.EndsWith(".md", StringComparison.OrdinalIgnoreCase))
-                        {
-                            try
-                            {
-                                contents.Append("\n<!-- " + origValue + ": INCLUDE BEGINS -->\n");
-                                contents.Append(File.ReadAllText(doc.FullName, Encoding.UTF8));
-                                contents.Append("\n<!-- " + origValue + ": INCLUDE ENDS   -->\n");
-                            }
-                            catch (UnauthorizedAccessException ex)
-                            {
-                                contents.Append("\n<!-- " + origValue + ": " + ex.Message + " -->\n");
-                            }
-                        }
-                        else
-                        {
-                            contents.Append(value = "\n<!-- " + origValue + ": INVALID FILE EXTENSION -->\n");
-                        }
-                    }
-                }
-                else
-                {
-                    contents.Append(value);
-                }
-
-                return contents.ToString();
-            });
-
-            // change markdown hyperlinks from md to md.html (X.md => x.md.html)
-            // TODO: to consider: only change local .md links if these are to be rendered?
-            var dom = Markdown.Parse(text, this.layer.Pipeline);
-            this.EnhanceDom(item, dom);
+            // Build the document tree: parse the source file and splice in the contents of
+            // any {{include: ...}} directive (recursively), rebasing each included file's
+            // relative links to the folder it was pulled from. Then rewrite every local
+            // .md link to its generated .html and register linked assets for export.
+            var dom = new MarkdownDocument();
+            this.AppendFile(item, dom, item.SourceFile, string.Empty, new HashSet<string>(StringComparer.OrdinalIgnoreCase), new IncludeCounter());
+            this.RewriteLocalLinks(item, dom);
 
             // generate HTML
-            string htmlContents;
-            {
-                htmlContents = Markdown.ToHtml(dom, this.layer.Pipeline);
-            }
+            string htmlContents = Markdown.ToHtml(dom, this.layer.Pipeline);
 
             // add a class="external" to external links <a href="http://...">
             htmlContents = linksRegex.Replace(htmlContents, new MatchEvaluator(match =>
@@ -277,83 +218,232 @@ namespace Airudit.MdBook.Core
             return path;
         }
 
-        private void EnhanceDom(SimpleMarkdownToHtmlLayerItem context, ContainerBlock root)
+        // Parses <paramref name="file"/>, splices any {{include}} directive into
+        // <paramref name="target"/> (recursively), and rebases each included file's relative
+        // links by <paramref name="prefix"/> — the folder path from the host file's directory
+        // to this file's directory. <paramref name="stack"/> guards against include cycles.
+        private void AppendFile(SimpleMarkdownToHtmlLayerItem item, MarkdownDocument target, FileInfo file, string prefix, HashSet<string> stack, IncludeCounter counter)
         {
-            foreach (var item in root)
+            if (!stack.Add(file.FullName))
             {
-                if (item is ContainerBlock containerBlock)
+                // include cycle: leave a marker and stop descending
+                target.Add(this.MakeCommentBlock("{{include}} cycle at " + file.Name));
+                return;
+            }
+
+            var raw = File.ReadAllText(file.FullName, Encoding.UTF8);
+
+            // Replace each standalone {{include: ...}} line with a markdown-inert token so the
+            // parser cannot mangle the directive; remember the path behind each token.
+            var directives = new Dictionary<string, IncludeDirective>(StringComparer.Ordinal);
+            var text = includeLineRegex.Replace(raw, match =>
+            {
+                var token = "mdbookinclude" + counter.Next().ToString(CultureInfo.InvariantCulture) + "token";
+                directives[token] = new IncludeDirective(match.Value.Trim(), match.Groups[1].Value);
+                return token;
+            });
+
+            var dom = Markdown.Parse(text, this.layer.Pipeline);
+
+            // Rebase this file's own relative links by its folder before its blocks are moved
+            // into the target. Done on the whole document (a container) because Markdig only
+            // descends into a leaf block's inlines when traversing from a container.
+            RebaseLinks(dom, prefix);
+
+            foreach (var block in dom.ToArray())
+            {
+                if (block is ParagraphBlock paragraph
+                    && directives.TryGetValue(GetInlineText(paragraph.Inline).Trim(), out var directive))
                 {
-                    this.EnhanceDom(context, containerBlock);
-                }
-                else if (item is ParagraphBlock paragraph)
-                {
-                    this.EnhanceDom(context, paragraph);
-                }
-                else if (item is Block block)
-                {
-                    this.EnhanceDom(context, block);
+                    this.AppendInclude(item, target, file, prefix, directive, stack, counter);
                 }
                 else
                 {
-                    // something is wrong here
+                    dom.Remove(block);
+                    target.Add(block);
                 }
             }
+
+            stack.Remove(file.FullName);
         }
 
-        private void EnhanceDom(SimpleMarkdownToHtmlLayerItem context, Block block)
+        // Resolves one {{include}} directive found in <paramref name="includingFile"/> and
+        // appends the included file's blocks to <paramref name="target"/>.
+        private void AppendInclude(SimpleMarkdownToHtmlLayerItem item, MarkdownDocument target, FileInfo includingFile, string prefix, IncludeDirective directive, HashSet<string> stack, IncludeCounter counter)
         {
-        }
-
-        private void EnhanceDom(SimpleMarkdownToHtmlLayerItem context, ParagraphBlock paragraph)
-        {
-            if (context == null)
+            var path = directive.Path;
+            if (path.Length >= 1 && path[0] == '/')
             {
-                throw new ArgumentNullException(nameof(context));
+                path = path.Substring(1);
             }
 
-            if (paragraph == null)
+            var fullPath = Path.Combine(includingFile.DirectoryName, path);
+            var included = new FileInfo(fullPath);
+            if (!included.Exists)
             {
-                throw new ArgumentNullException(nameof(paragraph));
+                target.Add(this.MakeCommentBlock(directive.Text + ": NO SUCH FILE"));
             }
-
-            foreach (var item in paragraph.Inline)
+            else if (!path.EndsWith(".md", StringComparison.OrdinalIgnoreCase))
             {
-                if (item is LinkInline link)
+                target.Add(this.MakeCommentBlock(directive.Text + ": INVALID FILE EXTENSION"));
+            }
+            else
+            {
+                try
                 {
-                    if (link.Url != null && Uri.IsWellFormedUriString(link.Url, UriKind.Absolute))
-                    {
-                        // fully qualified URL do not need change
-                        continue;
-                    }
-
-                    if (link.Url != null && Uri.TryCreate(link.Url, UriKind.Relative, out Uri? uri))
-                    {
-                        if (MyExtensions.IsInvalidFileRelativePath(link.Url))
-                        {
-                            // invalid relative path (see unit tests for IsInvalidFileRelativePath)
-                            // TODO: this will generate an invalid hyperlink. what should we do?
-                            continue;
-                        }
-
-                        var path = link.Url;
-                        if (path.EndsWith(".md", StringComparison.OrdinalIgnoreCase))
-                        {
-                            // local link to a markdown document: fix link url
-                            path = path + ".html";
-                        }
-                        else
-                        {
-                            // local link to a non-markdown file
-                            // add it for export
-                            var linkFilePath = Path.Combine(context.SourceFile.DirectoryName, link.Url);
-                            var resource = this.layer.AddFile(new FileInfo(linkFilePath), false);
-                            resource.RelativePath = GetRelativePath(context.RelativePath.Take(context.RelativePath.Length - 1).ToArray(), link.Url);
-                        }
-
-                        link.Url = path;
-                    }
+                    var childPrefix = CombinePrefix(prefix, GetDirectoryPart(path));
+                    this.AppendFile(item, target, included, childPrefix, stack, counter);
+                }
+                catch (UnauthorizedAccessException ex)
+                {
+                    target.Add(this.MakeCommentBlock(directive.Text + ": " + ex.Message));
                 }
             }
+        }
+
+        // Rewrites every local .md link in the assembled document to its .html output and
+        // registers any linked non-markdown file for export. Unlike a paragraph-only walk,
+        // this reaches links inside headings, lists and tables.
+        private void RewriteLocalLinks(SimpleMarkdownToHtmlLayerItem item, MarkdownDocument dom)
+        {
+            foreach (var link in dom.Descendants().OfType<LinkInline>())
+            {
+                if (link.Url == null || link.Url.StartsWith("#", StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                if (Uri.IsWellFormedUriString(link.Url, UriKind.Absolute))
+                {
+                    // fully qualified URL: leave unchanged
+                    continue;
+                }
+
+                if (!Uri.TryCreate(link.Url, UriKind.Relative, out _) || MyExtensions.IsInvalidFileRelativePath(link.Url))
+                {
+                    // invalid relative path (see unit tests for IsInvalidFileRelativePath)
+                    continue;
+                }
+
+                if (link.Url.EndsWith(".md", StringComparison.OrdinalIgnoreCase))
+                {
+                    // local link to a markdown document: point at its generated .html
+                    link.Url += ".html";
+                }
+                else
+                {
+                    // local link to a non-markdown file: register it for export
+                    var linkFilePath = Path.Combine(item.SourceFile.DirectoryName, link.Url);
+                    var resource = this.layer.AddFile(new FileInfo(linkFilePath), false);
+                    resource.RelativePath = GetRelativePath(item.RelativePath.Take(item.RelativePath.Length - 1).ToArray(), link.Url);
+                }
+            }
+        }
+
+        // Prefixes every local, non-anchor relative link in <paramref name="block"/> with
+        // <paramref name="prefix"/> and normalises the result. No-op at the host level (empty
+        // prefix).
+        private static void RebaseLinks(MarkdownObject block, string prefix)
+        {
+            if (string.IsNullOrEmpty(prefix))
+            {
+                return;
+            }
+
+            foreach (var link in block.Descendants().OfType<LinkInline>())
+            {
+                if (link.Url == null || link.Url.StartsWith("#", StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                if (Uri.IsWellFormedUriString(link.Url, UriKind.Absolute) || MyExtensions.IsInvalidFileRelativePath(link.Url))
+                {
+                    continue;
+                }
+
+                link.Url = NormalizeRelativePath(prefix, link.Url);
+            }
+        }
+
+        // Rebuilds "<!-- text -->" as a passthrough HTML block.
+        private Block MakeCommentBlock(string text)
+        {
+            var document = Markdown.Parse("<!-- " + text + " -->\n", this.layer.Pipeline);
+            var block = document[0];
+            document.RemoveAt(0);
+            return block;
+        }
+
+        // Concatenates the literal text of an inline container, used to read a directive
+        // token back from its parsed paragraph.
+        private static string GetInlineText(ContainerInline? inline)
+        {
+            if (inline == null)
+            {
+                return string.Empty;
+            }
+
+            var text = new StringBuilder();
+            foreach (var node in inline.Descendants())
+            {
+                if (node is LiteralInline literal)
+                {
+                    text.Append(literal.Content.ToString());
+                }
+            }
+
+            return text.ToString();
+        }
+
+        // Joins a base folder and a relative link, collapsing "." and ".." segments and
+        // preserving any trailing #fragment. Always returns forward-slash separators.
+        private static string NormalizeRelativePath(string prefix, string url)
+        {
+            var fragment = string.Empty;
+            var hash = url.IndexOf('#');
+            if (hash >= 0)
+            {
+                fragment = url.Substring(hash);
+                url = url.Substring(0, hash);
+            }
+
+            var segments = new List<string>();
+            foreach (var part in (prefix + "/" + url).Split(directorySeparators))
+            {
+                if (part.Length == 0 || ".".Equals(part, StringComparison.Ordinal))
+                {
+                    // skip empty and current-directory segments
+                }
+                else if ("..".Equals(part, StringComparison.Ordinal) && segments.Count > 0 && !"..".Equals(segments[^1], StringComparison.Ordinal))
+                {
+                    segments.RemoveAt(segments.Count - 1);
+                }
+                else
+                {
+                    segments.Add(part);
+                }
+            }
+
+            return string.Join("/", segments) + fragment;
+        }
+
+        // Combines the running prefix with an include's own directory part.
+        private static string CombinePrefix(string prefix, string directoryPart)
+        {
+            if (string.IsNullOrEmpty(directoryPart))
+            {
+                return prefix;
+            }
+
+            return NormalizeRelativePath(prefix, directoryPart);
+        }
+
+        // Directory portion of an include path ("help/readme.md" => "help"; "part.md" => "").
+        private static string GetDirectoryPart(string path)
+        {
+            var index = path.Replace('\\', '/').LastIndexOf('/');
+            return index < 0 ? string.Empty : path.Substring(0, index);
         }
 
         public static string[] GetRelativePath(string[] left, string right)
@@ -423,6 +513,33 @@ namespace Airudit.MdBook.Core
                     return templateReader.ReadToEnd();
                 }
             }
+        }
+
+        // Hands out unique, stable token numbers while a single page (and its nested
+        // includes) is assembled.
+        private sealed class IncludeCounter
+        {
+            private int value;
+
+            public int Next()
+            {
+                return this.value++;
+            }
+        }
+
+        // A parsed {{include}} directive: its original text (for error markers) and the raw
+        // path it points at.
+        private readonly struct IncludeDirective
+        {
+            public IncludeDirective(string text, string path)
+            {
+                this.Text = text;
+                this.Path = path;
+            }
+
+            public string Text { get; }
+
+            public string Path { get; }
         }
     }
 }

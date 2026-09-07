@@ -62,6 +62,146 @@ public class SimpleMarkdownToHtmlTaskTests
         Assert.Contains("class=\"external\"", html);
     }
 
+    // --- {{include: ...}} directive — behaviour that must be preserved ---
+
+    [Fact]
+    public void Include_splices_the_referenced_file_content()
+    {
+        var html = RenderTreeToHtml("main.md", new[]
+        {
+            ("main.md", "{{include: part.md}}"),
+            ("part.md", "spliced-marker"),
+        });
+        Assert.Contains("spliced-marker", html);
+    }
+
+    [Fact]
+    public void Include_of_a_missing_file_emits_a_comment()
+    {
+        var html = RenderTreeToHtml("main.md", new[]
+        {
+            ("main.md", "{{include: nope.md}}"),
+        });
+        Assert.Contains("NO SUCH FILE", html);
+    }
+
+    [Fact]
+    public void Include_of_a_non_markdown_file_is_rejected()
+    {
+        var html = RenderTreeToHtml("main.md", new[]
+        {
+            ("main.md", "{{include: data.txt}}"),
+            ("data.txt", "raw"),
+        });
+        Assert.Contains("INVALID FILE EXTENSION", html);
+    }
+
+    [Fact]
+    public void Include_with_a_leading_slash_resolves_from_the_source_directory()
+    {
+        var html = RenderTreeToHtml("main.md", new[]
+        {
+            ("main.md", "{{include: /part.md}}"),
+            ("part.md", "slash-marker"),
+        });
+        Assert.Contains("slash-marker", html);
+    }
+
+    [Fact]
+    public void Link_in_a_same_folder_include_is_rewritten_to_html()
+    {
+        var html = RenderTreeToHtml("main.md", new[]
+        {
+            ("main.md", "{{include: part.md}}"),
+            ("part.md", "[o](other.md)"),
+        });
+        Assert.Contains("href=\"other.md.html\"", html);
+    }
+
+    // --- issue #7: relative links inside an included file must be rebased ---
+
+    [Fact]
+    public void Link_in_an_included_file_is_rebased_to_its_folder()
+    {
+        var html = RenderTreeToHtml("main.md", new[]
+        {
+            ("main.md", "{{include: help/readme.md}}"),
+            ("help/readme.md", "[p1](page1.md)"),
+        });
+        Assert.Contains("href=\"help/page1.md.html\"", html);
+    }
+
+    [Fact]
+    public void Subfolder_link_in_an_included_file_is_rebased()
+    {
+        var html = RenderTreeToHtml("main.md", new[]
+        {
+            ("main.md", "{{include: help/readme.md}}"),
+            ("help/readme.md", "[p2](pages/page2.md)"),
+        });
+        Assert.Contains("href=\"help/pages/page2.md.html\"", html);
+    }
+
+    [Fact]
+    public void Parent_relative_link_in_an_included_file_collapses()
+    {
+        var html = RenderTreeToHtml("main.md", new[]
+        {
+            ("main.md", "{{include: a/b/part.md}}"),
+            ("a/b/part.md", "[x](../x.md)"),
+        });
+        Assert.Contains("href=\"a/x.md.html\"", html);
+    }
+
+    [Fact]
+    public void Nested_includes_are_expanded()
+    {
+        var html = RenderTreeToHtml("main.md", new[]
+        {
+            ("main.md", "{{include: a.md}}"),
+            ("a.md", "# A\n\n{{include: b.md}}"),
+            ("b.md", "bee-marker"),
+        });
+        Assert.Contains("bee-marker", html);
+    }
+
+    [Fact]
+    public void A_file_that_includes_itself_does_not_loop()
+    {
+        var html = RenderTreeToHtml("main.md", new[]
+        {
+            ("main.md", "top-marker\n\n{{include: main.md}}"),
+        });
+        Assert.Contains("top-marker", html);
+        Assert.Contains("cycle", html);
+    }
+
+    [Fact]
+    public void An_indirect_include_cycle_does_not_loop()
+    {
+        var html = RenderTreeToHtml("main.md", new[]
+        {
+            ("main.md", "{{include: a.md}}"),
+            ("a.md", "aaa-marker\n\n{{include: b.md}}"),
+            ("b.md", "bbb-marker\n\n{{include: a.md}}"),
+        });
+        Assert.Contains("aaa-marker", html);
+        Assert.Contains("bbb-marker", html);
+        Assert.Contains("cycle", html);
+    }
+
+    // --- links outside paragraphs (headings, lists) must be rewritten too ---
+
+    [Fact]
+    public void Markdown_link_inside_a_heading_is_rewritten()
+    {
+        var html = RenderTreeToHtml("main.md", new[]
+        {
+            ("main.md", "# See [x](other.md)"),
+        });
+        Assert.Contains("href=\"other.md.html\"", html);
+    }
+
     // Renders one Markdown file through the real task and returns the output HTML.
     private static string RenderToHtml(string fileName, string markdown, string? copyright = null)
     {
@@ -87,6 +227,45 @@ public class SimpleMarkdownToHtmlTaskTests
             task.Run(context);
 
             return File.ReadAllText(sourcePath + ".html", Encoding.UTF8);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, true);
+        }
+    }
+
+    // Writes a small tree of Markdown files to a temp directory, renders the host
+    // file through the real task, and returns its output HTML. Used for {{include}}
+    // scenarios where the layout of neighbouring files matters.
+    private static string RenderTreeToHtml(string hostRelativePath, (string Path, string Body)[] files, string? copyright = null)
+    {
+        var tempDir = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "mdbook-tests-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempDir);
+        try
+        {
+            var templatePath = System.IO.Path.Combine(tempDir, "template.html");
+            File.WriteAllText(templatePath, Template, Encoding.UTF8);
+
+            foreach (var (relativePath, body) in files)
+            {
+                var fullPath = System.IO.Path.Combine(tempDir, relativePath);
+                Directory.CreateDirectory(System.IO.Path.GetDirectoryName(fullPath)!);
+                File.WriteAllText(fullPath, body, Encoding.UTF8);
+            }
+
+            var hostPath = System.IO.Path.Combine(tempDir, hostRelativePath);
+            var layer = new SimpleMarkdownToHtmlLayer();
+            layer.AddFile(new FileInfo(hostPath), true);
+            layer.TemplateFilePath = templatePath;
+            layer.Copyright = copyright;
+
+            var context = new PackageContext();
+            context.AddLayer(layer);
+            var task = new SimpleMarkdownToHtmlTask();
+            task.Visit(context);
+            task.Run(context);
+
+            return File.ReadAllText(hostPath + ".html", Encoding.UTF8);
         }
         finally
         {
