@@ -13,8 +13,8 @@ Syntax
 {{include: path/to/part.md}}
 ```
 
-Where the directive appears, `mdbook` splices in the raw text of the referenced
-file, then renders the combined document as one. Rules:
+Where the directive appears, `mdbook` splices in the contents of the referenced
+file and renders the combined document as one page. Rules:
 
 - Put the directive on its **own line**. It pulls in block-level content
   (headings, lists, paragraphs), so it is not meant to sit inside a sentence.
@@ -49,25 +49,23 @@ so you can spot them when viewing source:
 - The target is not a `.md` file → `<!-- {{include: …}}: INVALID FILE EXTENSION -->`
 - The file cannot be read → the error message is emitted as a comment.
 
-Known limitation — links inside an included file
+Relative links inside an included file
 ----------------------------------------------------------------
 
-Relative links **inside** an included file are not rebased to the including file's
-location. A link that was correct in the part becomes wrong once the part is
-inlined somewhere else.
+Relative links **inside** an included file are automatically rebased to the
+including page. A link that was correct in the part stays correct once the part is
+pulled in from another folder.
 
 For example, with `page.md` doing `{{include: help/intro.md}}`, and `intro.md`
-containing a link to `page1.md` (meaning `help/page1.md`), the rendered page links
-to `page1.md` relative to `page.md` — that is, the wrong folder — and the link
-breaks.
+linking to `page1.md`, the rendered page links to `help/page1.md.html` — the folder
+the part came from — so the link resolves. External URLs and absolute paths are
+left untouched.
 
-Until this is fixed, prefer links that do not depend on the including file's
-location: link with paths relative to the *final* page, or use absolute URLs. This
-is tracked as issue #7 in the project tracker.
-
-Known limitation — nested includes
+Nested includes
 ----------------------------------------------------------------
 
-Includes are resolved one level deep. An `{{include: …}}` directive that appears
-*inside* an included file is left as-is, not expanded: a page may include parts,
-but those parts cannot themselves pull in further parts.
+Includes may nest: an included file can itself contain `{{include: …}}`
+directives, each resolved relative to the file that holds it, so a part that pulls
+in another part works to any depth. An include cycle — a file that, directly or
+indirectly, includes itself — is detected and stopped with a comment marker rather
+than looping.
