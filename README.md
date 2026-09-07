@@ -7,6 +7,12 @@ turns a collection a markdown/commonmark files into a (digital) book
 - nuget `Airudit.MdBook` is the dotnet tool at [nuget.org](https://www.nuget.org/packages/Airudit.MdBook)
 - nuget `Airudit.MdBook.Core` is the code library at [nuget.org](https://www.nuget.org/packages/Airudit.MdBook.Core)
 
+Documentation
+------------------------------------
+
+Full user guide in [`help/`](help/README.en.md): getting started, command-line
+usage, templates and placeholders, file includes, and using the code library.
+
 Usage
 ------------------------------------
 
