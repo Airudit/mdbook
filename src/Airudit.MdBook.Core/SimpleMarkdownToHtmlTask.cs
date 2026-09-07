@@ -25,6 +25,17 @@ namespace Airudit.MdBook.Core
         private static readonly Regex replacer = new Regex(@"\{\{\{([^}]+)\}\}\}", RegexOptions.Compiled);
         private static readonly Regex linksRegex = new Regex(@"<a href=""([^""]+)"">", RegexOptions.Compiled);
         private static readonly Regex includeLineRegex = new Regex(@"(?m)^[ \t]*\{\{include: *([/a-zA-Z0-9 ()+='"",.?_-]+)\}\}[ \t]*$", RegexOptions.Compiled);
+
+        // A line that opens an ordered-list item ("1. " or "1) ") carrying text. When such a
+        // line is immediately underlined by a setext bar, CommonMark reads it as a list item +
+        // thematic break, not a heading (issue #15); escaping the marker turns it into a heading.
+        private static readonly Regex numberedItemLineRegex = new Regex(@"^([ \t]{0,3})(\d{1,9})([.)])([ \t]+\S.*)$", RegexOptions.Compiled);
+        private static readonly Regex setextUnderlineRegex = new Regex(@"^[ \t]{0,3}(-+|=+)[ \t]*\r?$", RegexOptions.Compiled);
+        private static readonly Regex codeFenceLineRegex = new Regex(@"^[ \t]{0,3}(`{3,}|~{3,})", RegexOptions.Compiled);
+
+        // Opt-out for the numbered-setext-heading fix; on by default.
+        private const string NumberedSetextFixEnvVar = "MDBOOK_NUMBERED_SETEXT_FIX";
+
         private static readonly char[] directorySeparators = new char[] { '/', '\\', };
         private string? profile;
         private SimpleMarkdownToHtmlLayer? layer;
@@ -233,6 +244,13 @@ namespace Airudit.MdBook.Core
 
             var raw = File.ReadAllText(file.FullName, Encoding.UTF8);
 
+            // Neutralise numbered setext headings before parsing (issue #15) so "1. Title" over a
+            // dashed bar renders as a heading, not an ordered-list item + a stray thematic break.
+            if (IsNumberedSetextFixEnabled())
+            {
+                raw = FixNumberedSetextHeadings(raw);
+            }
+
             // Replace each standalone {{include: ...}} line with a markdown-inert token so the
             // parser cannot mangle the directive; remember the path behind each token.
             var directives = new Dictionary<string, IncludeDirective>(StringComparer.Ordinal);
@@ -265,6 +283,64 @@ namespace Airudit.MdBook.Core
             }
 
             stack.Remove(file.FullName);
+        }
+
+        // The numbered-setext fix is on unless the opt-out variable holds a falsey token.
+        private static bool IsNumberedSetextFixEnabled()
+        {
+            var value = Environment.GetEnvironmentVariable(NumberedSetextFixEnvVar);
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return true;
+            }
+
+            switch (value.Trim().ToLowerInvariant())
+            {
+                case "0":
+                case "false":
+                case "off":
+                case "no":
+                    return false;
+                default:
+                    return true;
+            }
+        }
+
+        // Escapes the list marker of any "1. Title"/"1) Title" line that is immediately followed by
+        // a setext underline, so Markdig reads a paragraph + underline (a heading) instead of an
+        // ordered-list item + thematic break (issue #15). Content inside fenced code blocks is left
+        // untouched; original line endings (including CRLF) are preserved.
+        private static string FixNumberedSetextHeadings(string text)
+        {
+            // Split on '\n' only: any trailing '\r' stays attached to each line and is carried
+            // through unchanged, so CRLF sources round-trip exactly.
+            var lines = text.Split('\n');
+            var inFence = false;
+            for (var i = 0; i < lines.Length; i++)
+            {
+                if (codeFenceLineRegex.IsMatch(lines[i]))
+                {
+                    inFence = !inFence;
+                    continue;
+                }
+
+                if (inFence || i + 1 >= lines.Length)
+                {
+                    continue;
+                }
+
+                var match = numberedItemLineRegex.Match(lines[i]);
+                if (match.Success && setextUnderlineRegex.IsMatch(lines[i + 1]))
+                {
+                    // Insert a backslash after the digits: "1. Title" -> "1\. Title". The backslash
+                    // escapes the marker (so it is no longer a list item) and is not rendered.
+                    var digits = match.Groups[2];
+                    var cut = digits.Index + digits.Length;
+                    lines[i] = lines[i].Substring(0, cut) + "\\" + lines[i].Substring(cut);
+                }
+            }
+
+            return string.Join("\n", lines);
         }
 
         // Resolves one {{include}} directive found in <paramref name="includingFile"/> and

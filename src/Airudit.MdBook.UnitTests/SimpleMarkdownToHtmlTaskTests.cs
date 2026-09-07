@@ -202,6 +202,91 @@ public class SimpleMarkdownToHtmlTaskTests
         Assert.Contains("href=\"other.md.html\"", html);
     }
 
+    // --- issue #15: numbered setext headings (1. Title + ----) must render as a
+    // heading, not an ordered-list item followed by a stray thematic break ---
+
+    [Fact]
+    public void Numbered_setext_heading_renders_as_h2_not_list_and_hr()
+    {
+        var html = RenderToHtml("doc.md", "1. Contexte et origine\n----------------------");
+        Assert.Contains("<h2", html);
+        Assert.DoesNotContain("<hr", html);
+        Assert.DoesNotContain("<ol", html);
+    }
+
+    [Fact]
+    public void Numbered_setext_heading_keeps_the_number_in_its_text()
+    {
+        var html = RenderToHtml("doc.md", "1. Contexte et origine\n----------------------");
+        Assert.Contains("1. Contexte et origine", html);
+        Assert.DoesNotContain("1\\.", html);
+    }
+
+    [Fact]
+    public void Consecutive_numbered_setext_headings_do_not_continue_list_numbering()
+    {
+        var html = RenderToHtml("doc.md",
+            "1. First\n--------\n\nBody.\n\n2. Second\n---------");
+        Assert.DoesNotContain("start=\"2\"", html);
+        Assert.DoesNotContain("<ol", html);
+        Assert.DoesNotContain("<hr", html);
+    }
+
+    [Fact]
+    public void Numbered_setext_heading_with_a_paren_marker_is_fixed()
+    {
+        var html = RenderToHtml("doc.md", "1) Contexte\n----------");
+        Assert.Contains("<h2", html);
+        Assert.Contains("1) Contexte", html);
+        Assert.DoesNotContain("<hr", html);
+    }
+
+    [Fact]
+    public void Numbered_setext_heading_with_equals_underline_renders_as_h1()
+    {
+        var html = RenderToHtml("doc.md", "1. Title\n========");
+        Assert.Contains("<h1", html);
+        Assert.Contains("1. Title", html);
+        Assert.DoesNotContain("<ol", html);
+    }
+
+    [Fact]
+    public void Numbered_list_with_a_blank_line_before_the_underline_stays_a_list()
+    {
+        // Blank line between the item and the dashes: not an underline candidate,
+        // so this is a genuine list + page break — the fix must not trigger.
+        var html = RenderToHtml("doc.md", "1. An item\n\n----------");
+        Assert.Contains("<li>", html);
+    }
+
+    [Fact]
+    public void Numbered_setext_inside_a_fenced_code_block_is_left_untouched()
+    {
+        var html = RenderToHtml("doc.md", "```\n1. Sample\n--------\n```");
+        // Code content is preserved literally, with no injected backslash escape.
+        Assert.Contains("1. Sample", html);
+        Assert.DoesNotContain("1\\.", html);
+    }
+
+    [Fact]
+    public void Numbered_setext_fix_can_be_disabled_with_the_environment_variable()
+    {
+        const string name = "MDBOOK_NUMBERED_SETEXT_FIX";
+        var previous = Environment.GetEnvironmentVariable(name);
+        Environment.SetEnvironmentVariable(name, "0");
+        try
+        {
+            var html = RenderToHtml("doc.md", "1. Title\n--------");
+            // Fix off: original CommonMark behaviour (ordered list + stray hr) returns.
+            Assert.Contains("<ol", html);
+            Assert.Contains("<hr", html);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(name, previous);
+        }
+    }
+
     // Renders one Markdown file through the real task and returns the output HTML.
     private static string RenderToHtml(string fileName, string markdown, string? copyright = null)
     {
