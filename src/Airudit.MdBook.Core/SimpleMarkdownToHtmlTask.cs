@@ -203,13 +203,19 @@ namespace Airudit.MdBook.Core
                 }
             });
 
-            // write HTML file
-            using (var targetStream = new FileStream(item.TargetFile.FullName, FileMode.Create, FileAccess.Write, FileShare.None))
+            // keep the full page in memory so it can be exported even when not written in place
+            item.RenderedPage = page;
+
+            // write the in-place side-by-side HTML file, unless suppressed (issue #9)
+            if (this.layer.SideBySide)
             {
-                using (var writer = new StreamWriter(targetStream, Encoding.UTF8))
+                using (var targetStream = new FileStream(item.TargetFile.FullName, FileMode.Create, FileAccess.Write, FileShare.None))
                 {
-                    writer.Write(page);
-                    writer.Flush();
+                    using (var writer = new StreamWriter(targetStream, Encoding.UTF8))
+                    {
+                        writer.Write(page);
+                        writer.Flush();
+                    }
                 }
             }
         }

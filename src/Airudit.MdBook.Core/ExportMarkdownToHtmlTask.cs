@@ -64,23 +64,37 @@ namespace Airudit.MdBook.Core
                 for (int f = 0; f < this.layer.Items.Count; f++)
                 {
                     var item = this.layer.Items[f];
-                    if (item != null && item.TargetFile != null && item.TargetFile.Exists && item.RelativePath != null)
+                    if (item == null || item.TargetFile == null || item.RelativePath == null)
                     {
-                        // for current file, define export directory by (export dir + file relative dir)
-                        var path = new string[item.RelativePath.Length];
-                        path[0] = export.Directory.FullName;
-                        Array.Copy(item.RelativePath, 0, path, 1, item.RelativePath.Length - 1);
-                        var fileExportDirectoryPath = Path.Combine(path);
-                        var directory = new DirectoryInfo(fileExportDirectoryPath);
+                        // missing data: non-exportable
+                        continue;
+                    }
 
-                        // create directory and copy file
-                        CreateFilesystemFolderPath(directory);
-                        var fileExportPath = Path.Combine(directory.FullName, item.TargetFile.Name);
-                        File.Copy(item.TargetFile.FullName, fileExportPath, true);
+                    // Markdown pages are exported straight from memory (the in-place file may be
+                    // suppressed); other assets are copied from disk. Skip anything not available.
+                    var isRenderedPage = item.IsMarkdown && item.RenderedPage != null;
+                    if (!isRenderedPage && !item.TargetFile.Exists)
+                    {
+                        continue;
+                    }
+
+                    // for current file, define export directory by (export dir + file relative dir)
+                    var path = new string[item.RelativePath.Length];
+                    path[0] = export.Directory.FullName;
+                    Array.Copy(item.RelativePath, 0, path, 1, item.RelativePath.Length - 1);
+                    var fileExportDirectoryPath = Path.Combine(path);
+                    var directory = new DirectoryInfo(fileExportDirectoryPath);
+
+                    // create directory and write/copy the file
+                    CreateFilesystemFolderPath(directory);
+                    var fileExportPath = Path.Combine(directory.FullName, item.TargetFile.Name);
+                    if (isRenderedPage)
+                    {
+                        File.WriteAllText(fileExportPath, item.RenderedPage, System.Text.Encoding.UTF8);
                     }
                     else
                     {
-                        // missing data: non-exportable
+                        File.Copy(item.TargetFile.FullName, fileExportPath, true);
                     }
                 }
             }

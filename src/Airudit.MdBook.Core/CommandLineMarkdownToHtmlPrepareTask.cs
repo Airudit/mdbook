@@ -28,6 +28,7 @@ namespace Airudit.MdBook.Core
 
             // parse console arguments
             var isHelp = false;
+            var sideExplicit = false;
             var errors = new List<string>();
             var files = new List<FileInfo>();
             var directories = new List<DirectoryInfo>();
@@ -38,6 +39,10 @@ namespace Airudit.MdBook.Core
                 if (args.Is(arg = "--help"))
                 {
                     isHelp = true;
+                }
+                else if (args.Is(arg = "--side"))
+                {
+                    sideExplicit = true;
                 }
                 else if (args.Is(arg = "--export"))
                 {
@@ -127,6 +132,10 @@ namespace Airudit.MdBook.Core
                 interactor.Out.WriteLine("Options: ");
                 interactor.Out.WriteLine("    --Export <dir>        Exports the generated documentation to this directory");
                 interactor.Out.WriteLine("    --Single-File <file>  Exports the generated documentation to a single file");
+                interactor.Out.WriteLine("    --Side                Also writes each page's HTML next to its source file.");
+                interactor.Out.WriteLine("                          These in-place files are written by default, but are");
+                interactor.Out.WriteLine("                          suppressed once --Single-File or --Export is given; pass");
+                interactor.Out.WriteLine("                          --Side to keep writing them as well.");
                 interactor.Out.WriteLine("    --Template <file>     Specifies the HTML template file path");
                 interactor.Out.WriteLine("    --Copyright <str>     Specifies a copyright notice");
                 interactor.Out.WriteLine("");
@@ -145,6 +154,11 @@ namespace Airudit.MdBook.Core
                 Environment.Exit(1);
                 return;
             }
+
+            // Side-by-side in-place files are the default output only when no other destination
+            // is given. Any explicit destination (--single-file or --export) suppresses them,
+            // unless --side is passed to keep writing them as well.
+            layer.SideBySide = sideExplicit || (layer.SingleFile == null && layer.Exports.Count == 0);
 
             // verify exports
             for (int e = 0; e < layer.Exports.Count; e++)

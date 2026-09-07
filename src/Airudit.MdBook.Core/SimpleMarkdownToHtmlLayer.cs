@@ -40,6 +40,13 @@ namespace Airudit.MdBook.Core
 
         public string SingleFile { get; set; }
 
+        /// <summary>
+        /// Whether to write each page's HTML in place, next to its source file. On by default;
+        /// turned off when an output destination (--single-file or --export) is given without
+        /// an explicit --side request. See <see cref="CommandLineMarkdownToHtmlPrepareTask"/>.
+        /// </summary>
+        public bool SideBySide { get; set; } = true;
+
         public string TemplateFilePath { get; set; }
         
         public string? Copyright { get; set; }
@@ -78,6 +85,12 @@ namespace Airudit.MdBook.Core
 
         public string[]? RelativePath { get; set; }
         public string? HtmlContents { get; set; }
+
+        /// <summary>
+        /// The full templated HTML page for this file, kept in memory so it can be exported
+        /// even when the in-place side-by-side file is not written.
+        /// </summary>
+        public string? RenderedPage { get; set; }
         public CultureInfo? Lang { get; set; }
     }
 
