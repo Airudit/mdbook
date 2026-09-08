@@ -30,8 +30,7 @@ namespace Airudit.MdBook.Core
             var isHelp = false;
             var sideExplicit = false;
             var errors = new List<string>();
-            var files = new List<FileInfo>();
-            var directories = new List<DirectoryInfo>();
+            var inputs = new List<FileSystemInfo>();
             using var args = new ParseArgs(interactor.Arguments);
             while (args.MoveNext())
             {
@@ -96,14 +95,14 @@ namespace Airudit.MdBook.Core
                 }
                 else
                 {
-                    // extra values???
+                    // extra values: input files and directories, kept in command-line order
                     if (Directory.Exists(args.Current))
                     {
-                        directories.Add(new DirectoryInfo(args.Current));
+                        inputs.Add(new DirectoryInfo(args.Current));
                     }
                     else if (File.Exists(args.Current))
                     {
-                        files.Add(new FileInfo(args.Current));
+                        inputs.Add(new FileInfo(args.Current));
                     }
                     else
                     {
@@ -183,19 +182,21 @@ namespace Airudit.MdBook.Core
                 }
             }
 
-            // fill layer with files
-            // recursive inventory of files from given folders
-            foreach (var dir in directories)
+            // Fill the layer with files in the order given on the command line, de-duplicated by
+            // full path (first occurrence wins) so a file named both explicitly and inside a
+            // listed folder is emitted once, at its first position (issue #4).
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var input in inputs)
             {
-                var root1 = new string[] { dir.Name, };
-                this.ExpandDirectoryToFiles(dir, layer, root1);
-            }
-
-            // extra CLI file paths
-            foreach (var file in files)
-            {
-                var item = layer.AddFile(file, true);
-                item.RelativePath = new string[] { file.Name, };
+                if (input is DirectoryInfo dir)
+                {
+                    this.ExpandDirectoryToFiles(dir, layer, new string[] { dir.Name, }, seen);
+                }
+                else if (input is FileInfo file && seen.Add(file.FullName))
+                {
+                    var item = layer.AddFile(file, true);
+                    item.RelativePath = new string[] { file.Name, };
+                }
             }
         }
 
@@ -207,21 +208,59 @@ namespace Airudit.MdBook.Core
         {
         }
 
-        private void ExpandDirectoryToFiles(DirectoryInfo directory, SimpleMarkdownToHtmlLayer layer, string[] path)
+        private void ExpandDirectoryToFiles(DirectoryInfo directory, SimpleMarkdownToHtmlLayer layer, string[] path, HashSet<string> seen)
         {
-            // files
-            foreach (var file in directory.GetFiles("*.md", SearchOption.TopDirectoryOnly))
+            // files: README first, then Index, then the rest alphabetically (deterministic order)
+            var mdFiles = directory.GetFiles("*.md", SearchOption.TopDirectoryOnly);
+            Array.Sort(mdFiles, CompareByHoistThenName);
+            foreach (var file in mdFiles)
             {
-                var item = layer.AddFile(file, true);
-                item.IsMarkdown = true;
-                item.RelativePath = SimpleMarkdownToHtmlTask.GetRelativePath(path, file.Name);
+                if (seen.Add(file.FullName))
+                {
+                    var item = layer.AddFile(file, true);
+                    item.IsMarkdown = true;
+                    item.RelativePath = SimpleMarkdownToHtmlTask.GetRelativePath(path, file.Name);
+                }
             }
 
-            // child directories
-            foreach (var dir in directory.GetDirectories())
+            // child directories, alphabetically
+            var subDirectories = directory.GetDirectories();
+            Array.Sort(subDirectories, (a, b) => string.Compare(a.Name, b.Name, StringComparison.OrdinalIgnoreCase));
+            foreach (var dir in subDirectories)
             {
-                this.ExpandDirectoryToFiles(dir, layer, SimpleMarkdownToHtmlTask.GetRelativePath(path, dir.Name));
+                this.ExpandDirectoryToFiles(dir, layer, SimpleMarkdownToHtmlTask.GetRelativePath(path, dir.Name), seen);
             }
+        }
+
+        // Orders directory files: README before Index before everything else, then by name.
+        private static int CompareByHoistThenName(FileInfo a, FileInfo b)
+        {
+            var rankA = HoistRank(a.Name);
+            var rankB = HoistRank(b.Name);
+            if (rankA != rankB)
+            {
+                return rankA - rankB;
+            }
+
+            return string.Compare(a.Name, b.Name, StringComparison.OrdinalIgnoreCase);
+        }
+
+        // README-family files sort first (rank 0), Index-family next (rank 1), the rest last (2).
+        // Matches on the leading name segment so localized variants (README.en.md) hoist too.
+        private static int HoistRank(string fileName)
+        {
+            var head = fileName.Split('.')[0];
+            if (string.Equals(head, "readme", StringComparison.OrdinalIgnoreCase))
+            {
+                return 0;
+            }
+
+            if (string.Equals(head, "index", StringComparison.OrdinalIgnoreCase))
+            {
+                return 1;
+            }
+
+            return 2;
         }
     }
 }

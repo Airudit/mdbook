@@ -94,6 +94,58 @@ public class OutputModeTests
         Assert.False(File.Exists(Path.Combine(dir.Root, "help", "b.md.html")));
     }
 
+    // --- issue #4: file ordering and de-duplication for the assembled output ---
+
+    [Fact]
+    public void Explicit_files_keep_their_command_line_order()
+    {
+        using var dir = new TempTree(("a.md", "# a"), ("b.md", "# b"));
+        var names = ParseItemNames(Path.Combine(dir.Root, "b.md"), Path.Combine(dir.Root, "a.md"));
+        Assert.Equal(new[] { "b.md", "a.md" }, names);
+    }
+
+    [Fact]
+    public void Directory_files_are_sorted_alphabetically()
+    {
+        using var dir = new TempTree(("d/zeta.md", "#"), ("d/alpha.md", "#"), ("d/mid.md", "#"));
+        var names = ParseItemNames(Path.Combine(dir.Root, "d"));
+        Assert.Equal(new[] { "alpha.md", "mid.md", "zeta.md" }, names);
+    }
+
+    [Fact]
+    public void Readme_then_index_are_hoisted_to_the_front_of_a_directory()
+    {
+        using var dir = new TempTree(("d/zeta.md", "#"), ("d/alpha.md", "#"), ("d/README.md", "#"), ("d/Index.md", "#"));
+        var names = ParseItemNames(Path.Combine(dir.Root, "d"));
+        Assert.Equal(new[] { "README.md", "Index.md", "alpha.md", "zeta.md" }, names);
+    }
+
+    [Fact]
+    public void An_explicit_file_before_a_directory_keeps_its_position_and_is_not_duplicated()
+    {
+        using var dir = new TempTree(("help/alpha.md", "#"), ("help/zeta.md", "#"));
+        var names = ParseItemNames(Path.Combine(dir.Root, "help", "zeta.md"), Path.Combine(dir.Root, "help"));
+        // zeta is explicit and first; the folder expansion must not add it again.
+        Assert.Equal(new[] { "zeta.md", "alpha.md" }, names);
+    }
+
+    [Fact]
+    public void Files_and_directories_follow_the_command_line_order()
+    {
+        using var dir = new TempTree(("x.md", "#"), ("sub/m.md", "#"), ("y.md", "#"));
+        var names = ParseItemNames(
+            Path.Combine(dir.Root, "x.md"),
+            Path.Combine(dir.Root, "sub"),
+            Path.Combine(dir.Root, "y.md"));
+        Assert.Equal(new[] { "x.md", "m.md", "y.md" }, names);
+    }
+
+    // Runs the CLI parse task and returns the source file names in layer order.
+    private static string[] ParseItemNames(params string[] args)
+    {
+        return ParseArgs(args).Items.Select(item => item.SourceFile.Name).ToArray();
+    }
+
     // Runs only the CLI parse task and returns the populated markdown layer.
     private static SimpleMarkdownToHtmlLayer ParseArgs(params string[] args)
     {
