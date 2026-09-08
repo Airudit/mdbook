@@ -112,3 +112,18 @@ What gets written
   rendered book stays navigable.
 - Links to external URLs (`http`, `https`, `ftp`) get a `class="external"` so a
   template can style them.
+
+Ordering
+----------------------------------------------------------------
+
+Pages are assembled — and, with `--Single-File`, listed and concatenated — in
+this order:
+
+- Inputs are taken in the order given on the command line, files and folders
+  alike. `mdbook README.md guide/ appendix.md` renders `README.md`, then the
+  contents of `guide/`, then `appendix.md`.
+- Inside a folder, `README` comes first, then `Index`, then the remaining files
+  by name (case-insensitive); sub-folders follow, also by name.
+- A file named both explicitly and inside a listed folder appears once, at its
+  first position. So `mdbook guide/intro.md guide/` puts `intro.md` first and the
+  rest of `guide/` after it, with no duplicate.
