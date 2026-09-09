@@ -6,6 +6,7 @@ namespace Airudit.MdBook.Core
     using System.Collections.Generic;
     using System.IO;
     using System.Linq;
+    using System.Reflection;
 
     /// <summary>
     /// Main command. Command to convert some markdown files to HTML (no packaging involved).
@@ -28,6 +29,7 @@ namespace Airudit.MdBook.Core
 
             // parse console arguments
             var isHelp = false;
+            var isVersion = false;
             var sideExplicit = false;
             var errors = new List<string>();
             var inputs = new List<FileSystemInfo>();
@@ -38,6 +40,10 @@ namespace Airudit.MdBook.Core
                 if (args.Is(arg = "--help"))
                 {
                     isHelp = true;
+                }
+                else if (args.Is(arg = "--version"))
+                {
+                    isVersion = true;
                 }
                 else if (args.Is(arg = "--side"))
                 {
@@ -111,6 +117,17 @@ namespace Airudit.MdBook.Core
                 }
             }
 
+            if (isVersion)
+            {
+                // Full informational version from the entry assembly (e.g. "0.4.0+<sha>"), set by MinVer.
+                var version = Assembly.GetEntryAssembly()
+                    ?.GetCustomAttribute<AssemblyInformationalVersionAttribute>()
+                    ?.InformationalVersion
+                    ?? "unknown";
+                interactor.Out.WriteLine(version);
+                Environment.Exit(0);
+            }
+
             if (errors.Any())
             {
                 foreach (var error in errors)
@@ -137,6 +154,7 @@ namespace Airudit.MdBook.Core
                 interactor.Out.WriteLine("                          --Side to keep writing them as well.");
                 interactor.Out.WriteLine("    --Template <file>     Specifies the HTML template file path");
                 interactor.Out.WriteLine("    --Copyright <str>     Specifies a copyright notice");
+                interactor.Out.WriteLine("    --Version             Prints the tool version and exits");
                 interactor.Out.WriteLine("");
                 interactor.Out.WriteLine("Built-in templates:");
                 interactor.Out.WriteLine("    --Template builtin:default.light.html");

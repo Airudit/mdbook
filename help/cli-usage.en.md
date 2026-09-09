@@ -40,6 +40,8 @@ Option names are case-insensitive (`--export` and `--Export` are equal).
   [Templates and placeholders](templates.en.md).
 - `--Copyright <str>` — a copyright notice made available to the template as
   `{{{Copyright}}}`.
+- `--Version` — print the tool version (the full semantic version, e.g.
+  `0.4.0+<commit>`) and exit.
 
 Built-in templates:
 
