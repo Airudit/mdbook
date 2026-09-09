@@ -42,4 +42,11 @@
     <EmbeddedResource Include="res\default.dark.html" />
   </ItemGroup>
 
+  <!-- MinVer sets AssemblyVersion to {Major}.0.0.0 by default; derive the full tag version so the assembly carries a proper AssemblyVersion. -->
+  <Target Name="SetAssemblyVersionFromMinVer" AfterTargets="MinVer">
+    <PropertyGroup>
+      <AssemblyVersion>$(MinVerMajor).$(MinVerMinor).$(MinVerPatch).0</AssemblyVersion>
+    </PropertyGroup>
+  </Target>
+
 </Project>
