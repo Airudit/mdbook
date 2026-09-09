@@ -50,6 +50,14 @@ Built-in templates:
 --Template builtin:default.dark.html
 ```
 
+Environment variables
+----------------------------------------------------------------
+
+- `MDBOOK_TEMPLATE` — sets the default template (a file path or a `builtin:` name)
+  used when `--Template` is not given on the command line. `--Template` always takes
+  precedence, and an empty value is ignored (the built-in default is used). Handy for
+  a shell session or CI where the same template is used for every call.
+
 Examples
 ----------------------------------------------------------------
 

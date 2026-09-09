@@ -117,6 +117,19 @@ namespace Airudit.MdBook.Core
                 }
             }
 
+            // Fall back to the MDBOOK_TEMPLATE environment variable when no --Template was given.
+            // A file path or a "builtin:" name are both accepted (same resolution as --Template);
+            // an empty/whitespace value is treated as unset. --Template always wins.
+            if (layer.TemplateFilePath == null)
+            {
+                const string templateEnvVar = "MDBOOK_TEMPLATE";
+                var envTemplate = Environment.GetEnvironmentVariable(templateEnvVar);
+                if (!string.IsNullOrWhiteSpace(envTemplate))
+                {
+                    layer.TemplateFilePath = envTemplate;
+                }
+            }
+
             if (isVersion)
             {
                 // Full informational version from the entry assembly (e.g. "0.4.0+<sha>"), set by MinVer.
@@ -159,6 +172,10 @@ namespace Airudit.MdBook.Core
                 interactor.Out.WriteLine("Built-in templates:");
                 interactor.Out.WriteLine("    --Template builtin:default.light.html");
                 interactor.Out.WriteLine("    --Template builtin:default.dark.html");
+                interactor.Out.WriteLine("");
+                interactor.Out.WriteLine("Environment variables:");
+                interactor.Out.WriteLine("    MDBOOK_TEMPLATE       Default template (file path or builtin: name) used");
+                interactor.Out.WriteLine("                          when --Template is not given. --Template overrides it.");
                 interactor.Out.WriteLine("");
                 Environment.Exit(0);
             }

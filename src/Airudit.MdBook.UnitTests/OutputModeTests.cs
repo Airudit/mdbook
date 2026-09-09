@@ -140,6 +140,60 @@ public class OutputModeTests
         Assert.Equal(new[] { "x.md", "m.md", "y.md" }, names);
     }
 
+    [Fact]
+    public void Template_defaults_to_the_MDBOOK_TEMPLATE_environment_variable()
+    {
+        const string name = "MDBOOK_TEMPLATE";
+        var previous = Environment.GetEnvironmentVariable(name);
+        Environment.SetEnvironmentVariable(name, "builtin:default.dark.html");
+        try
+        {
+            using var dir = new TempTree(("a.md", "# a"));
+            var layer = ParseArgs(Path.Combine(dir.Root, "a.md"));
+            Assert.Equal("builtin:default.dark.html", layer.TemplateFilePath);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(name, previous);
+        }
+    }
+
+    [Fact]
+    public void Template_argument_overrides_the_MDBOOK_TEMPLATE_environment_variable()
+    {
+        const string name = "MDBOOK_TEMPLATE";
+        var previous = Environment.GetEnvironmentVariable(name);
+        Environment.SetEnvironmentVariable(name, "builtin:default.dark.html");
+        try
+        {
+            using var dir = new TempTree(("a.md", "# a"));
+            var layer = ParseArgs(Path.Combine(dir.Root, "a.md"), "--template", "builtin:default.light.html");
+            Assert.Equal("builtin:default.light.html", layer.TemplateFilePath);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(name, previous);
+        }
+    }
+
+    [Fact]
+    public void An_empty_MDBOOK_TEMPLATE_environment_variable_is_ignored()
+    {
+        const string name = "MDBOOK_TEMPLATE";
+        var previous = Environment.GetEnvironmentVariable(name);
+        Environment.SetEnvironmentVariable(name, "   ");
+        try
+        {
+            using var dir = new TempTree(("a.md", "# a"));
+            var layer = ParseArgs(Path.Combine(dir.Root, "a.md"));
+            Assert.Null(layer.TemplateFilePath);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(name, previous);
+        }
+    }
+
     // Runs the CLI parse task and returns the source file names in layer order.
     private static string[] ParseItemNames(params string[] args)
     {
