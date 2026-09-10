@@ -22,11 +22,15 @@ What it does
 Contents
 ----------------------------------------------------------------
 
+- [Why mdbook exists](about.en.md) — the thinking behind a single, self-contained
+  HTML file, and what the tool will and won't become.
 - [Getting started](getting-started.en.md) — install the tool and render your
   first file.
 - [Command-line usage](cli-usage.en.md) — the command and every option.
 - [Single-file books](single-file.en.md) — combine a whole folder into one
   self-contained HTML document, `mdbook`'s headline output.
+- [Reading a book](reading.en.md) — every way to read the output: browser, print,
+  reader, terminal, or as a file you can edit.
 - [Templates and placeholders](templates.en.md) — the built-in templates and the
   `{{{…}}}` variables they fill.
 - [Including files](includes.en.md) — composing a page from several Markdown

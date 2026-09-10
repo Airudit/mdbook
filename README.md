@@ -7,6 +7,19 @@ turns a collection of markdown/commonmark files into a (digital) book
 - nuget `Airudit.MdBook` is the dotnet tool at [nuget.org](https://www.nuget.org/packages/Airudit.MdBook)
 - nuget `Airudit.MdBook.Core` is the code library at [nuget.org](https://www.nuget.org/packages/Airudit.MdBook.Core)
 
+Why single-file?
+------------------------------------
+
+Most documentation tools build a *website* — a tree of HTML, CSS and assets that needs a
+server, or at least needs to stay intact, to be read. mdbook builds the opposite: **one
+self-contained HTML file** that opens anywhere and bends to however you want to read it —
+on screen, in print, in a reader, or down a shell. It's text you can grep, diff and even
+edit, and everything it needs lives inside it.
+
+Inspired by [SingleFile](https://github.com/gildas-lormeau/SingleFile). The longer version
+— why I built it this way — is in
+[Why mdbook exists](https://github.com/Airudit/mdbook/blob/main/help/about.en.md).
+
 Features
 ------------------------------------
 
