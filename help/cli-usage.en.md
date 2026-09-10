@@ -18,6 +18,37 @@ freely:
 Anything that is neither an existing file nor directory is reported as an unknown
 argument and the run stops.
 
+Operation modes
+----------------------------------------------------------------
+
+`mdbook` emits HTML in one of three ways. They can be combined, and `--Side` brings
+back the in-place files whenever a destination would otherwise replace them.
+
+- **In place (default)** — for every input `X.md`, a file `X.md.html` is written next
+  to the source; a folder is rendered in place, preserving its structure. This is what
+  you get when no destination option is given.
+- **Export** — `--Export <dir>` copies the generated pages into `<dir>`, preserving
+  each file's relative path, and copies the non-Markdown files you link to (images,
+  downloads) alongside. It may be given more than once to export to several places.
+- **Single file** — `--Single-File <file>` combines every page into one self-contained
+  HTML document with its own table of contents and in-file navigation. This is
+  `mdbook`'s headline output; see [Single-file books](single-file.en.md).
+
+Giving `--Export` or `--Single-File` **suppresses** the in-place `X.md.html` files — the
+destination is assumed to be what you want. Pass `--Side` to keep writing them as well.
+
+| Mode | Example | What is written | In-place `X.md.html` |
+|---|---|---|---|
+| In place (default) | `mdbook docs/` | `X.md.html` next to each source | written |
+| Export | `mdbook docs/ --Export out/` | mirrored tree in `out/`, linked assets copied | suppressed (add `--Side`) |
+| Single file | `mdbook docs/ --Single-File book.html` | one combined `book.html` | suppressed (add `--Side`) |
+
+Inside the content, local `.md` links are rewritten to `.md.html` so a rendered book
+stays navigable; with `--Single-File` they instead resolve to the target page's in-file
+`#anchor`. Links to external URLs (`http`, `https`, `ftp`) get a `class="external"` so a
+template can style them. Files pulled in with `{{include: …}}` are partials and are not
+written as pages of their own (see [Including files](includes.en.md)).
+
 Options
 ----------------------------------------------------------------
 
@@ -28,21 +59,11 @@ Option names are case-insensitive (`--export` and `--Export` are equal).
   are copied along too. May be given more than once to export to several
   locations. On its own this writes only into `<dir>` — the in-place files next
   to the sources are suppressed (see `--Side`).
-- `--Single-File <file>` — combine every rendered page into one HTML file at
-  `<file>`, prefixed with a table of contents that mirrors the source folder
-  structure and labels each page by its title (its first heading, or the file
-  name). Cross-page `.md` links resolve to in-file section anchors, so navigation
-  works within the one file. On its own this writes only the single file — the
-  in-place files are suppressed (see `--Side`). On completion it prints a one-line
-  summary (`Combined N pages into <file>`).
+- `--Single-File <file>` — combine every rendered page into one self-contained HTML
+  file at `<file>`, with a table of contents and in-file navigation. This is the
+  headline mode; see [Single-file books](single-file.en.md) for the full behaviour.
 - `--ByLang` — with `--Single-File`, write one combined file **per language** instead
-  of one merged document. A page's language comes from a trailing `.xx` in its file name
-  (`README.en.md` → `en`); regional variants are unified by their two-letter code, so
-  `en`, `en-US` and `en-GB` share one `en` book (each section keeps its exact language).
-  Put a `{lang}` placeholder in the output path (`book.{lang}.html` → `book.en.html`,
-  `book.fr.html`); with no placeholder, `.{lang}` is inserted before the extension
-  (`book.html` → `book.en.html`). Language-neutral pages (no `.xx` suffix) are included in
-  every language's book. Requires `--Single-File`.
+  of one merged document. See [Single-file books](single-file.en.md).
 - `--Side` — also write each page's HTML in place, next to its source file. The
   in-place files are written by default, but are suppressed once `--Export` or
   `--Single-File` is given; pass `--Side` to keep writing them as well.
@@ -129,34 +150,9 @@ dotnet tool restore
 dotnet mdbook help/ README.md
 ```
 
-What gets written
-----------------------------------------------------------------
-
-- By default, for every input `X.md`, a file `X.md.html` is written next to the
-  source.
-- Giving an output destination changes where the pages go: `--Export <dir>`
-  writes them into `<dir>` (preserving relative paths), and `--Single-File <file>`
-  merges them into one document. Either one suppresses the in-place `X.md.html`
-  files; add `--Side` to write those as well.
-- Local `.md` links inside the content are rewritten to `.md.html` so the
-  rendered book stays navigable. With `--Single-File`, they instead resolve to the
-  target page's in-file `#anchor`.
-- Links to external URLs (`http`, `https`, `ftp`) get a `class="external"` so a
-  template can style them.
-- Files pulled in with `{{include: …}}` are partials and are not written as pages
-  of their own (see [Including files](includes.en.md)).
-
 Ordering
 ----------------------------------------------------------------
 
-Pages are assembled — and, with `--Single-File`, listed and concatenated — in
-this order:
-
-- Inputs are taken in the order given on the command line, files and folders
-  alike. `mdbook README.md guide/ appendix.md` renders `README.md`, then the
-  contents of `guide/`, then `appendix.md`.
-- Inside a folder, `README` comes first, then `Index`, then the remaining files
-  by name (case-insensitive); sub-folders follow, also by name.
-- A file named both explicitly and inside a listed folder appears once, at its
-  first position. So `mdbook guide/intro.md guide/` puts `intro.md` first and the
-  rest of `guide/` after it, with no duplicate.
+The order in which inputs are taken, folders are walked, and duplicates are dropped is only
+observable in the combined output, so it is documented with the mode it affects — see
+*Page order* in [Single-file books](single-file.en.md).

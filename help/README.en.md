@@ -25,6 +25,8 @@ Contents
 - [Getting started](getting-started.en.md) — install the tool and render your
   first file.
 - [Command-line usage](cli-usage.en.md) — the command and every option.
+- [Single-file books](single-file.en.md) — combine a whole folder into one
+  self-contained HTML document, `mdbook`'s headline output.
 - [Templates and placeholders](templates.en.md) — the built-in templates and the
   `{{{…}}}` variables they fill.
 - [Including files](includes.en.md) — composing a page from several Markdown
