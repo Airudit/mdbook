@@ -194,6 +194,99 @@ public class OutputModeTests
         }
     }
 
+    // --- issue #17: cross-page links resolve to in-file anchors, anchors are path slugs ---
+
+    [Fact]
+    public void Single_file_cross_page_link_resolves_to_the_target_page_anchor()
+    {
+        using var dir = new TempTree(
+            ("README.md", "# Home\n\n[appendix](appendix.md)"),
+            ("appendix.md", "# Appendix"));
+        var html = RenderSingleFile(dir, "all.html",
+            Path.Combine(dir.Root, "README.md"), Path.Combine(dir.Root, "appendix.md"));
+
+        Assert.Contains("<article id=\"appendix\">", html);
+        Assert.Contains("<a href=\"#appendix\">", html);
+        // the broken side-by-side file target must be gone
+        Assert.DoesNotContain("appendix.md.html", html);
+    }
+
+    [Fact]
+    public void Single_file_links_across_subfolders_resolve_both_ways()
+    {
+        using var dir = new TempTree(
+            ("doc/README.md", "# Home\n\n[intro](guide/intro.md)"),
+            ("doc/guide/intro.md", "# Intro\n\n[home](../README.md)"));
+        var html = RenderSingleFile(dir, "all.html", Path.Combine(dir.Root, "doc"));
+
+        // README -> guide/intro.md , and intro -> ../README.md , both to their slugs
+        Assert.Contains("<article id=\"doc-readme\">", html);
+        Assert.Contains("<article id=\"doc-guide-intro\">", html);
+        Assert.Contains("<a href=\"#doc-guide-intro\">", html);
+        Assert.Contains("<a href=\"#doc-readme\">", html);
+        Assert.DoesNotContain(".md.html", html);
+    }
+
+    [Fact]
+    public void Single_file_anchors_are_path_slugs_not_positional()
+    {
+        using var dir = new TempTree(("doc/README.md", "# Home"), ("doc/appendix.md", "# Appendix"));
+        var html = RenderSingleFile(dir, "all.html", Path.Combine(dir.Root, "doc"));
+
+        Assert.DoesNotContain("id=\"page-", html);
+        Assert.Contains("<article id=\"doc-readme\">", html);
+    }
+
+    [Fact]
+    public void Single_file_leaves_links_to_pages_outside_the_bundle_untouched()
+    {
+        using var dir = new TempTree(("README.md", "# Home\n\n[gone](missing.md) and [ext](https://example.com/)"));
+        var html = RenderSingleFile(dir, "all.html", Path.Combine(dir.Root, "README.md"));
+
+        // a .md not in the bundle keeps its file link; an absolute URL stays external
+        Assert.Contains("missing.md.html", html);
+        Assert.Contains("https://example.com/", html);
+    }
+
+    [Fact]
+    public void Single_file_deduplicates_colliding_page_slugs()
+    {
+        // "a-b.md" and "a/b.md" both slug to "<root>-a-b"; the second must be suffixed.
+        using var dir = new TempTree(("doc/a-b.md", "# One"), ("doc/a/b.md", "# Two"));
+        var html = RenderSingleFile(dir, "all.html", Path.Combine(dir.Root, "doc"));
+
+        Assert.Contains("<article id=\"doc-a-b\">", html);
+        Assert.Contains("<article id=\"doc-a-b-2\">", html);
+    }
+
+    [Fact]
+    public void Single_file_tags_each_article_with_its_language()
+    {
+        using var dir = new TempTree(("README.en.md", "# Home"), ("guide.fr.md", "# Guide"));
+        var html = RenderSingleFile(dir, "all.html",
+            Path.Combine(dir.Root, "README.en.md"), Path.Combine(dir.Root, "guide.fr.md"));
+
+        Assert.Contains("<article id=\"readme-en\" lang=\"en\">", html);
+        Assert.Contains("<article id=\"guide-fr\" lang=\"fr\">", html);
+    }
+
+    [Fact]
+    public void Single_file_article_without_a_language_has_no_lang_attribute()
+    {
+        using var dir = new TempTree(("README.md", "# Home"));
+        var html = RenderSingleFile(dir, "all.html", Path.Combine(dir.Root, "README.md"));
+
+        Assert.Contains("<article id=\"readme\">", html);
+    }
+
+    // Runs the whole pipeline into a single file and returns its HTML.
+    private static string RenderSingleFile(TempTree dir, string singleFileName, params string[] inputs)
+    {
+        var single = Path.Combine(dir.Root, singleFileName);
+        RunCli(inputs.Concat(new[] { "--single-file", single }).ToArray());
+        return File.ReadAllText(single);
+    }
+
     // Runs the CLI parse task and returns the source file names in layer order.
     private static string[] ParseItemNames(params string[] args)
     {

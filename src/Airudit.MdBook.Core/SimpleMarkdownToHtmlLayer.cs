@@ -87,6 +87,15 @@ namespace Airudit.MdBook.Core
         public string? HtmlContents { get; set; }
 
         /// <summary>
+        /// The page's stable, path-based anchor slug within a <c>--single-file</c> bundle
+        /// (e.g. "guide/intro.md" -> "guide-intro"). Assigned by
+        /// <see cref="CombineMarkdownToHtmlTask"/>; used as the page's <c>&lt;article id&gt;</c>,
+        /// its table-of-contents target, and the destination of cross-page links. Null when
+        /// not combining into a single file.
+        /// </summary>
+        public string? Anchor { get; set; }
+
+        /// <summary>
         /// The full templated HTML page for this file, kept in memory so it can be exported
         /// even when the in-place side-by-side file is not written.
         /// </summary>
