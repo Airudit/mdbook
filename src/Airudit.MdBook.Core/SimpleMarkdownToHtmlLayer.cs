@@ -87,6 +87,13 @@ namespace Airudit.MdBook.Core
         public string? HtmlContents { get; set; }
 
         /// <summary>
+        /// True when the file was named directly on the command line (not discovered by a
+        /// directory scan). Such a page is always rendered, even if another page also pulls it
+        /// in with <c>{{include}}</c> (which otherwise demotes a file to a non-rendered partial).
+        /// </summary>
+        public bool ExplicitlyListed { get; set; }
+
+        /// <summary>
         /// The page's first level-1 heading text, if any. Used as its table-of-contents label
         /// in a <c>--single-file</c> bundle, falling back to the file name when absent.
         /// </summary>

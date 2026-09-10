@@ -106,10 +106,76 @@ namespace Airudit.MdBook.Core
                 throw new ArgumentNullException(nameof(context));
             }
 
+            this.RemoveIncludedPartials();
+
             foreach (var item in this.layer.Items.ToArray()) // we need to change the collection while enumerating it
             {
                 this.ProcessFileMarkdown(context, item);
             }
+        }
+
+        // A file pulled into another page with {{include}} is a partial, not a page: drop it
+        // from the page list so it is not rendered (and duplicated) as a standalone page — in
+        // any output mode. A partial named explicitly on the command line is kept (issue #23).
+        private void RemoveIncludedPartials()
+        {
+            var included = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var visiting = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var item in this.layer.Items)
+            {
+                if (item.IsMarkdown)
+                {
+                    this.CollectIncludedFiles(item.SourceFile, included, visiting);
+                }
+            }
+
+            if (included.Count == 0)
+            {
+                return;
+            }
+
+            this.layer.Items.RemoveAll(item =>
+                item.IsMarkdown
+                && !item.ExplicitlyListed
+                && included.Contains(item.SourceFile.FullName));
+        }
+
+        // Records every file reachable through {{include}} directives from <paramref name="file"/>,
+        // resolving paths exactly as AppendInclude does; recursive and cycle-guarded.
+        private void CollectIncludedFiles(FileInfo file, HashSet<string> included, HashSet<string> visiting)
+        {
+            if (!file.Exists || !visiting.Add(file.FullName))
+            {
+                return;
+            }
+
+            var raw = File.ReadAllText(file.FullName, Encoding.UTF8);
+            foreach (Match match in includeLineRegex.Matches(raw))
+            {
+                var path = match.Groups[1].Value;
+                if (path.Length >= 1 && path[0] == '/')
+                {
+                    path = path.Substring(1);
+                }
+
+                if (!path.EndsWith(".md", StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                var includedFile = new FileInfo(Path.Combine(file.DirectoryName!, path));
+
+                // A file that includes itself (directly or through a cycle back to itself) is
+                // still a page, not a partial — only demote a file included by a *different* one.
+                if (!string.Equals(includedFile.FullName, file.FullName, StringComparison.OrdinalIgnoreCase))
+                {
+                    included.Add(includedFile.FullName);
+                }
+
+                this.CollectIncludedFiles(includedFile, included, visiting);
+            }
+
+            visiting.Remove(file.FullName);
         }
 
         private void ProcessFileMarkdown(PackageContext context, SimpleMarkdownToHtmlLayerItem item)

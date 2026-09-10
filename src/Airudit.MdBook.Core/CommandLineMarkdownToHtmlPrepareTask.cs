@@ -227,10 +227,27 @@ namespace Airudit.MdBook.Core
                 {
                     this.ExpandDirectoryToFiles(dir, layer, new string[] { dir.Name, }, seen);
                 }
-                else if (input is FileInfo file && seen.Add(file.FullName))
+                else if (input is FileInfo file)
                 {
-                    var item = layer.AddFile(file, true);
-                    item.RelativePath = new string[] { file.Name, };
+                    if (seen.Add(file.FullName))
+                    {
+                        var item = layer.AddFile(file, true);
+                        item.RelativePath = new string[] { file.Name, };
+                        item.ExplicitlyListed = true;
+                    }
+                    else
+                    {
+                        // Already added (e.g. via a listed folder): mark it explicit so it
+                        // stays a rendered page even if another page includes it.
+                        foreach (var existing in layer.Items)
+                        {
+                            if (string.Equals(existing.SourceFile.FullName, file.FullName, StringComparison.OrdinalIgnoreCase))
+                            {
+                                existing.ExplicitlyListed = true;
+                                break;
+                            }
+                        }
+                    }
                 }
             }
         }

@@ -329,6 +329,47 @@ public class OutputModeTests
         Assert.DoesNotContain("notes.md</a>", toc);
     }
 
+    // --- issue #23: files pulled in with {{include}} are partials, not standalone pages ---
+
+    [Fact]
+    public void Single_file_does_not_render_a_scanned_included_partial_as_its_own_page()
+    {
+        using var dir = new TempTree(
+            ("book/host.md", "# Host\n\n{{include: shared.md}}"),
+            ("book/shared.md", "# Shared\n\nPartial body."));
+        var html = RenderSingleFile(dir, "all.html", Path.Combine(dir.Root, "book"));
+
+        // the partial is spliced into the host once, and has no page/TOC entry of its own
+        Assert.DoesNotContain("id=\"book-shared\"", html);
+        Assert.Equal(1, CountOccurrences(html, "Partial body."));
+    }
+
+    [Fact]
+    public void An_included_partial_named_explicitly_on_the_command_line_is_still_rendered()
+    {
+        using var dir = new TempTree(
+            ("book/host.md", "# Host\n\n{{include: shared.md}}"),
+            ("book/shared.md", "# Shared\n\nPartial body."));
+        var html = RenderSingleFile(dir, "all.html",
+            Path.Combine(dir.Root, "book", "shared.md"), Path.Combine(dir.Root, "book", "host.md"));
+
+        // explicitly listed -> it keeps its own page even though host also includes it
+        Assert.Contains("<article id=\"shared\"", html);
+    }
+
+    private static int CountOccurrences(string haystack, string needle)
+    {
+        var count = 0;
+        var i = 0;
+        while ((i = haystack.IndexOf(needle, i, StringComparison.Ordinal)) >= 0)
+        {
+            count++;
+            i += needle.Length;
+        }
+
+        return count;
+    }
+
     // Extracts the "<article id=list>...</article>" table-of-contents block.
     private static string TableOfContents(string html)
     {
