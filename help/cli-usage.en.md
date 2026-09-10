@@ -42,6 +42,9 @@ Option names are case-insensitive (`--export` and `--Export` are equal).
   [Templates and placeholders](templates.en.md).
 - `--Copyright <str>` — a copyright notice made available to the template as
   `{{{Copyright}}}`.
+- `--Verbose`, `-v` — print a per-page trace (`Processing markdown file "…"`) while
+  rendering. A run is quiet by default; the in-place writes performed by `--Side`
+  (or a default no-destination run) are reported either way.
 - `--Version` — print the tool version (the full semantic version, e.g.
   `0.4.0+<commit>`) and exit.
 

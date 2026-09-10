@@ -94,6 +94,42 @@ public class OutputModeTests
         Assert.False(File.Exists(Path.Combine(dir.Root, "help", "b.md.html")));
     }
 
+    // --- issue #20: --verbose gates the per-page trace; side-writes are always logged ---
+
+    [Fact]
+    public void A_default_run_does_not_print_the_per_page_processing_trace()
+    {
+        using var dir = new TempTree(("a.md", "# a"), ("b.md", "# b"));
+        var output = RunCliCapture(dir.Root, "--single-file", Path.Combine(dir.Root, "all.html"));
+        Assert.DoesNotContain("Processing markdown file", output);
+    }
+
+    [Fact]
+    public void A_verbose_run_prints_the_per_page_processing_trace()
+    {
+        using var dir = new TempTree(("a.md", "# a"), ("b.md", "# b"));
+        var output = RunCliCapture(dir.Root, "--single-file", Path.Combine(dir.Root, "all.html"), "-v");
+        Assert.Contains("Processing markdown file", output);
+    }
+
+    [Fact]
+    public void The_verbose_flag_also_has_a_long_form()
+    {
+        using var dir = new TempTree(("a.md", "# a"));
+        var output = RunCliCapture(dir.Root, "--single-file", Path.Combine(dir.Root, "all.html"), "--verbose");
+        Assert.Contains("Processing markdown file", output);
+    }
+
+    [Fact]
+    public void Side_by_side_writes_are_logged_even_without_verbose()
+    {
+        using var dir = new TempTree(("a.md", "# a"));
+        // No output destination, so side-by-side is on by default; the write must be reported.
+        var output = RunCliCapture(Path.Combine(dir.Root, "a.md"));
+        Assert.Contains("Wrote " + Path.Combine(dir.Root, "a.md.html"), output);
+        Assert.DoesNotContain("Processing markdown file", output);
+    }
+
     // --- issue #4: file ordering and de-duplication for the assembled output ---
 
     [Fact]
@@ -421,8 +457,15 @@ public class OutputModeTests
     // Runs the whole task pipeline exactly as Program.cs does, with the built-in template.
     private static void RunCli(params string[] args)
     {
+        RunCliCapture(args);
+    }
+
+    // Same as RunCli but returns everything written to standard output during the run.
+    private static string RunCliCapture(params string[] args)
+    {
+        var output = new StringWriter();
         var context = new PackageContext();
-        context.AddLayer(new CommandLineLayer(new StringWriter(), new StringWriter(), new StringReader(string.Empty),
+        context.AddLayer(new CommandLineLayer(output, new StringWriter(), new StringReader(string.Empty),
             args.Concat(new[] { "--template", "builtin:default.light.html" }).ToArray()));
         var tasks = new ITask[]
         {
@@ -445,6 +488,8 @@ public class OutputModeTests
         {
             task.Run(context);
         }
+
+        return output.ToString();
     }
 
     // A throwaway directory tree of source files, removed on dispose.

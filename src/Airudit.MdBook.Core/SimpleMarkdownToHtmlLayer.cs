@@ -47,6 +47,12 @@ namespace Airudit.MdBook.Core
         /// </summary>
         public bool SideBySide { get; set; } = true;
 
+        /// <summary>
+        /// Whether to print the per-page "Processing markdown file" trace. Off by default so a
+        /// run stays quiet apart from high-level summaries; turned on by --verbose / -v.
+        /// </summary>
+        public bool Verbose { get; set; }
+
         public string TemplateFilePath { get; set; }
         
         public string? Copyright { get; set; }

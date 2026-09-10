@@ -31,6 +31,7 @@ namespace Airudit.MdBook.Core
             var isHelp = false;
             var isVersion = false;
             var sideExplicit = false;
+            var verbose = false;
             var errors = new List<string>();
             var inputs = new List<FileSystemInfo>();
             using var args = new ParseArgs(interactor.Arguments);
@@ -48,6 +49,10 @@ namespace Airudit.MdBook.Core
                 else if (args.Is(arg = "--side"))
                 {
                     sideExplicit = true;
+                }
+                else if (args.Is("--verbose", "-v"))
+                {
+                    verbose = true;
                 }
                 else if (args.Is(arg = "--export"))
                 {
@@ -167,6 +172,7 @@ namespace Airudit.MdBook.Core
                 interactor.Out.WriteLine("                          --Side to keep writing them as well.");
                 interactor.Out.WriteLine("    --Template <file>     Specifies the HTML template file path");
                 interactor.Out.WriteLine("    --Copyright <str>     Specifies a copyright notice");
+                interactor.Out.WriteLine("    --Verbose, -v         Prints a per-page trace while rendering (quiet by default)");
                 interactor.Out.WriteLine("    --Version             Prints the tool version and exits");
                 interactor.Out.WriteLine("");
                 interactor.Out.WriteLine("Built-in templates:");
@@ -193,6 +199,7 @@ namespace Airudit.MdBook.Core
             // is given. Any explicit destination (--single-file or --export) suppresses them,
             // unless --side is passed to keep writing them as well.
             layer.SideBySide = sideExplicit || (layer.SingleFile == null && layer.Exports.Count == 0);
+            layer.Verbose = verbose;
 
             // verify exports
             for (int e = 0; e < layer.Exports.Count; e++)

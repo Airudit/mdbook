@@ -181,7 +181,10 @@ namespace Airudit.MdBook.Core
         private void ProcessFileMarkdown(PackageContext context, SimpleMarkdownToHtmlLayerItem item)
         {
             var interactor = context.GetSingleLayer<CommandLineLayer>();
-            interactor?.Out?.WriteLine("Processing markdown file \"" + item.SourceFile + "\". ");
+            if (this.layer.Verbose)
+            {
+                interactor?.Out?.WriteLine("Processing markdown file \"" + item.SourceFile + "\". ");
+            }
 
             // prepare
             var title = Path.GetFileNameWithoutExtension(item.SourceFile.Name);
@@ -287,6 +290,10 @@ namespace Airudit.MdBook.Core
                         writer.Flush();
                     }
                 }
+
+                // In-place files are what --side (or the default no-destination run) explicitly
+                // asks for, so confirm each write even when not running verbose.
+                interactor?.Out?.WriteLine("Wrote " + item.TargetFile.FullName);
             }
         }
 
