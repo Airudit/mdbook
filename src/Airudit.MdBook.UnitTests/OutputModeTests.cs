@@ -352,6 +352,60 @@ public class OutputModeTests
         }
     }
 
+    [Fact]
+    public void Copyright_defaults_to_the_MDBOOK_COPYRIGHT_environment_variable()
+    {
+        const string name = "MDBOOK_COPYRIGHT";
+        var previous = Environment.GetEnvironmentVariable(name);
+        Environment.SetEnvironmentVariable(name, "© Airudit");
+        try
+        {
+            using var dir = new TempTree(("a.md", "# a"));
+            var layer = ParseArgs(Path.Combine(dir.Root, "a.md"));
+            Assert.Equal("© Airudit", layer.Copyright);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(name, previous);
+        }
+    }
+
+    [Fact]
+    public void Copyright_argument_overrides_the_MDBOOK_COPYRIGHT_environment_variable()
+    {
+        const string name = "MDBOOK_COPYRIGHT";
+        var previous = Environment.GetEnvironmentVariable(name);
+        Environment.SetEnvironmentVariable(name, "© from env");
+        try
+        {
+            using var dir = new TempTree(("a.md", "# a"));
+            var layer = ParseArgs(Path.Combine(dir.Root, "a.md"), "--copyright", "© from arg");
+            Assert.Equal("© from arg", layer.Copyright);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(name, previous);
+        }
+    }
+
+    [Fact]
+    public void An_empty_MDBOOK_COPYRIGHT_environment_variable_is_ignored()
+    {
+        const string name = "MDBOOK_COPYRIGHT";
+        var previous = Environment.GetEnvironmentVariable(name);
+        Environment.SetEnvironmentVariable(name, "   ");
+        try
+        {
+            using var dir = new TempTree(("a.md", "# a"));
+            var layer = ParseArgs(Path.Combine(dir.Root, "a.md"));
+            Assert.Null(layer.Copyright);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(name, previous);
+        }
+    }
+
     // --- issue #17: cross-page links resolve to in-file anchors, anchors are path slugs ---
 
     [Fact]

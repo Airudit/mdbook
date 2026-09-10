@@ -140,6 +140,18 @@ namespace Airudit.MdBook.Core
                 }
             }
 
+            // Same rule for the copyright notice: fall back to MDBOOK_COPYRIGHT when --Copyright
+            // was not given. --Copyright always wins; an empty/whitespace value is ignored.
+            if (layer.Copyright == null)
+            {
+                const string copyrightEnvVar = "MDBOOK_COPYRIGHT";
+                var envCopyright = Environment.GetEnvironmentVariable(copyrightEnvVar);
+                if (!string.IsNullOrWhiteSpace(envCopyright))
+                {
+                    layer.Copyright = envCopyright;
+                }
+            }
+
             if (isVersion)
             {
                 // Full informational version from the entry assembly (e.g. "0.4.0+<sha>"), set by MinVer.
@@ -168,20 +180,25 @@ namespace Airudit.MdBook.Core
                 interactor.Out.WriteLine("command usage: ");
                 interactor.Out.WriteLine("    mdbook {file path}+ [options]");
                 interactor.Out.WriteLine("");
-                interactor.Out.WriteLine("Options: ");
-                interactor.Out.WriteLine("    --Export <dir>        Exports the generated documentation to this directory");
-                interactor.Out.WriteLine("    --Single-File <file>  Exports the generated documentation to a single file");
-                interactor.Out.WriteLine("    --ByLang              With --Single-File, write one combined file per detected");
-                interactor.Out.WriteLine("                          language. Put \"{lang}\" in the file path (e.g. book.{lang}.html)");
-                interactor.Out.WriteLine("                          or \".{lang}\" is inserted before the extension.");
-                interactor.Out.WriteLine("    --Side                Also writes each page's HTML next to its source file.");
-                interactor.Out.WriteLine("                          These in-place files are written by default, but are");
-                interactor.Out.WriteLine("                          suppressed once --Single-File or --Export is given; pass");
+                interactor.Out.WriteLine("Output modes (default: write X.md.html next to each source):");
+                interactor.Out.WriteLine("    --Export <dir>        Copy the generated pages into <dir> (mirrored paths)");
+                interactor.Out.WriteLine("    --Single-File <file>  Combine every page into one self-contained HTML file");
+                interactor.Out.WriteLine("    --Side                Also write the in-place files. They are on by default but");
+                interactor.Out.WriteLine("                          suppressed once --Export or --Single-File is given; pass");
                 interactor.Out.WriteLine("                          --Side to keep writing them as well.");
-                interactor.Out.WriteLine("    --Template <file>     Specifies the HTML template file path");
-                interactor.Out.WriteLine("    --Copyright <str>     Specifies a copyright notice");
-                interactor.Out.WriteLine("    --Verbose, -v         Prints a per-page trace while rendering (quiet by default)");
-                interactor.Out.WriteLine("    --Version             Prints the tool version and exits");
+                interactor.Out.WriteLine("");
+                interactor.Out.WriteLine("Single-file options: ");
+                interactor.Out.WriteLine("    --ByLang              With --Single-File, write one combined file per detected");
+                interactor.Out.WriteLine("                          language. Put \"{lang}\" in the file path (e.g. book.{lang}.html);");
+                interactor.Out.WriteLine("                          otherwise \".{lang}\" is inserted before the extension.");
+                interactor.Out.WriteLine("");
+                interactor.Out.WriteLine("Rendering: ");
+                interactor.Out.WriteLine("    --Template <file>     HTML template file path, or a builtin: name (see below)");
+                interactor.Out.WriteLine("    --Copyright <str>     Copyright notice, exposed to the template as {{{Copyright}}}");
+                interactor.Out.WriteLine("");
+                interactor.Out.WriteLine("Output & info: ");
+                interactor.Out.WriteLine("    --Verbose, -v         Print a per-page trace while rendering (quiet by default)");
+                interactor.Out.WriteLine("    --Version             Print the tool version and exit");
                 interactor.Out.WriteLine("");
                 interactor.Out.WriteLine("Built-in templates:");
                 interactor.Out.WriteLine("    --Template builtin:default.light.html");
@@ -190,6 +207,11 @@ namespace Airudit.MdBook.Core
                 interactor.Out.WriteLine("Environment variables:");
                 interactor.Out.WriteLine("    MDBOOK_TEMPLATE       Default template (file path or builtin: name) used");
                 interactor.Out.WriteLine("                          when --Template is not given. --Template overrides it.");
+                interactor.Out.WriteLine("    MDBOOK_COPYRIGHT      Default copyright notice used when --Copyright is not");
+                interactor.Out.WriteLine("                          given. --Copyright overrides it.");
+                interactor.Out.WriteLine("    MDBOOK_NUMBERED_SETEXT_FIX");
+                interactor.Out.WriteLine("                          Set to 0/false/off/no to disable the numbered setext");
+                interactor.Out.WriteLine("                          heading fix (on by default).");
                 interactor.Out.WriteLine("");
                 Environment.Exit(0);
             }
