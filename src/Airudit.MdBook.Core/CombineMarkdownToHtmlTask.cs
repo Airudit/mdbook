@@ -208,6 +208,15 @@ public class CombineMarkdownToHtmlTask : ITask
         }));
 
         var path = outputPath;
+
+        // Create the output's parent directory if it is missing, mirroring --Export, so writing
+        // the combined file into a not-yet-existing folder does not throw.
+        var outputDirectory = Path.GetDirectoryName(Path.GetFullPath(path));
+        if (!string.IsNullOrEmpty(outputDirectory) && !Directory.Exists(outputDirectory))
+        {
+            Directory.CreateDirectory(outputDirectory);
+        }
+
         using (var file = new FileStream(path, FileMode.OpenOrCreate, FileAccess.Write, FileShare.None))
         {
             file.SetLength(0L);

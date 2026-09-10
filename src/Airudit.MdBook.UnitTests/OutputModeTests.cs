@@ -228,6 +228,30 @@ public class OutputModeTests
         Assert.False(File.Exists(Path.Combine(dir.Root, "book.{lang}.html")));
     }
 
+    // --- single-file robustness: output directory creation and explicit-in-folder grouping ---
+
+    [Fact]
+    public void Single_file_creates_the_output_directory_when_it_is_missing()
+    {
+        using var dir = new TempTree(("a.md", "# A"));
+        var single = Path.Combine(dir.Root, "out", "deep", "book.html");
+        RunCli(dir.Root, "--single-file", single);
+        Assert.True(File.Exists(single));
+    }
+
+    [Fact]
+    public void Single_file_a_file_named_ahead_of_its_folder_stays_grouped_with_it()
+    {
+        using var dir = new TempTree(("docs/README.md", "# Home"), ("docs/guide.md", "# Guide"), ("docs/zeta.md", "# Zeta"));
+        // Name one file ahead of its own folder to reorder it; it must adopt the folder path so the
+        // table of contents stays flat (single top folder stripped), not split into root + a folder node.
+        var toc = TableOfContents(RenderSingleFile(dir, "all.html",
+            Path.Combine(dir.Root, "docs", "guide.md"), Path.Combine(dir.Root, "docs")));
+        Assert.DoesNotContain("<li>docs", toc);
+        // The explicitly named page leads.
+        Assert.True(toc.IndexOf("Guide", StringComparison.Ordinal) < toc.IndexOf("Home", StringComparison.Ordinal));
+    }
+
     // --- issue #4: file ordering and de-duplication for the assembled output ---
 
     [Fact]

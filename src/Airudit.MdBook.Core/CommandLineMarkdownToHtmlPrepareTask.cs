@@ -289,6 +289,20 @@ namespace Airudit.MdBook.Core
                     item.IsMarkdown = true;
                     item.RelativePath = SimpleMarkdownToHtmlTask.GetRelativePath(path, file.Name);
                 }
+                else
+                {
+                    // Already listed (e.g. named explicitly, ahead of this folder, to fix its order):
+                    // adopt the folder-relative path so it groups with its siblings in the single-file
+                    // table of contents instead of floating at the root. Its position is unchanged.
+                    foreach (var existing in layer.Items)
+                    {
+                        if (string.Equals(existing.SourceFile.FullName, file.FullName, StringComparison.OrdinalIgnoreCase))
+                        {
+                            existing.RelativePath = SimpleMarkdownToHtmlTask.GetRelativePath(path, file.Name);
+                            break;
+                        }
+                    }
+                }
             }
 
             // child directories, alphabetically
