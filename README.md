@@ -14,7 +14,7 @@ Features
   external CDN, both screen- and print-friendly.
 - **Single-file books** — combine a whole folder into one HTML file with a nested
   table of contents and working in-file links. See
-  [Single-file books](help/single-file.en.md).
+  [Single-file books](https://github.com/Airudit/mdbook/blob/main/help/single-file.en.md).
 - **`--ByLang`** — one combined book per language for multilingual sources.
 - Output in place, into a directory (`--Export`), or as a single file — or several at
   once; runs quiet by default, with `--Verbose` for a per-page trace.
@@ -24,75 +24,30 @@ Features
 Documentation
 ------------------------------------
 
-Full user guide in [`help/`](help/README.en.md): getting started, command-line
+Full user guide in [`help/`](https://github.com/Airudit/mdbook/blob/main/help/README.en.md): getting started, command-line
 usage, single-file books, templates and placeholders, file includes, and using the
 code library.
 
 Usage
 ------------------------------------
 
-```
-mdbook --help
-```
-
-```
-Airudit.MdBook – Usage
-
-This command will generate HTML files for each specified markdown file.
-
-command usage:
-    mdbook {file path}+ [options]
-
-Output modes (default: write X.md.html next to each source):
-    --Export <dir>        Copy the generated pages into <dir> (mirrored paths)
-    --Single-File <file>  Combine every page into one self-contained HTML file
-    --Side                Also write the in-place files. They are on by default but
-                          suppressed once --Export or --Single-File is given; pass
-                          --Side to keep writing them as well.
-
-Single-file options:
-    --ByLang              With --Single-File, write one combined file per detected
-                          language. Put "{lang}" in the file path (e.g. book.{lang}.html);
-                          otherwise ".{lang}" is inserted before the extension.
-
-Rendering:
-    --Template <file>     HTML template file path, or a builtin: name (see below)
-    --Copyright <str>     Copyright notice, exposed to the template as {{{Copyright}}}
-
-Output & info:
-    --Verbose, -v         Print a per-page trace while rendering (quiet by default)
-    --Version             Print the tool version and exit
-
-Built-in templates:
-    --Template builtin:default.light.html
-    --Template builtin:default.dark.html
-
-Environment variables:
-    MDBOOK_TEMPLATE       Default template used when --Template is not given
-    MDBOOK_COPYRIGHT      Default copyright notice used when --Copyright is not given
-    MDBOOK_NUMBERED_SETEXT_FIX
-                          Set to 0/false/off/no to disable the numbered setext fix
+```bash
+mdbook {file path or directory}+ [options]
 ```
 
-Make HTML files from MD files now:
+Render loose files in place, export a folder to a directory, or combine a folder into
+one self-contained book:
 
-```
-mdbook    my.md dir/*.md other-dir/
-```
-
-Make HTML files from local MD files in a dedicated directory:
-
-```
-mdbook    .         --export ~/docs/
+```bash
+mdbook my.md dir/*.md other-dir/         # render each in place
+mdbook .      --Export ~/docs/           # export a mirrored tree
+mdbook docs/  --Single-File docs.html    # one combined book
 ```
 
-Make a single HTML file from all MD in directory docs:
-
-```
-mdbook     docs/    --single-file docs.html
-```
-
-You can also do all this using C# by adding a PackageReference to the code library.
+Run `mdbook --help` for every option, or read the full
+[Command-line usage](https://github.com/Airudit/mdbook/blob/main/help/cli-usage.en.md) guide (modes, `--ByLang`, templates,
+environment variables). You can also drive the renderer from C# — see
+[Use as a C# library](https://github.com/Airudit/mdbook/blob/main/help/library.en.md).
 
 
 Install options
@@ -151,72 +106,16 @@ See also: [how to manage and use .NET tools](https://learn.microsoft.com/en-us/d
 
 ### Use during CI
 
-In your repository: make a project local install with:
+Pin the tool per-project so its version is tracked in source control:
 
 ```console
-# create a tool manifest file for your project
-dotnet new tool-manifest
-
-# verify
-cat .config/dotnet-tools.json
-
-# install
+dotnet new tool-manifest            # once, committed to the repo
 dotnet tool install Airudit.MdBook
-
-# verify
-cat .config/dotnet-tools.json
-
-# verify command
-dotnet mdbook --help
+dotnet tool restore                 # on every build machine
+dotnet mdbook help/ README.md       # then run it
 ```
 
-During your CI, restore the tools:
-
-```console
-dotnet tool restore
-```
-
-Now you can use the command in your build process
-
-```console
-dotnet mdbook help/ README.md
-```
-
-
-Code
-------------------------------------
-
-To run, use: 
-
-```bash
-dotnet run -v q --framework net8.0 --project src/Airudit.MdBook -- --help
-```
-
-
-Releasing
-------------------------------------
-
-Publishing is handled by the `publish` GitHub Actions workflow (`.github/workflows/publish.yml`), triggered when a GitHub Release is published.
-
-**What gets published:**
-
-- `Airudit.MdBook` NuGet package (dotnet global tool) → nuget.org
-- `Airudit.MdBook.Core` NuGet package (code library) → nuget.org
-- `mdbook-{version}-linux-x64.tar.gz` → attached to the GitHub Release
-- `mdbook-{version}-win-x64.zip` → attached to the GitHub Release
-
-**Steps to release:**
-
-1. Push all changes to `main`
-2. Create and push a version tag: `git tag v1.2.3 && git push origin v1.2.3`
-3. On GitHub, create a Release from that tag — this triggers the workflow
-4. The workflow builds, tests, and publishes everything automatically
-
-The version is derived from the git tag via [MinVer](https://github.com/adamralph/minver). The tag must start with `v` (e.g. `v1.2.3`).
-
-The binary release assets target `net8.0` and are framework-dependent (require .NET 8 on the target machine).
-
-Required secret: `NUGETAIRUDIT` (NuGet API key with push rights).
+See [Command-line usage](https://github.com/Airudit/mdbook/blob/main/help/cli-usage.en.md) for the full CI walkthrough.
 
 
 More information
@@ -224,34 +123,12 @@ More information
 
 This project uses [Markdig](https://github.com/xoofx/markdig) as MD parser and HTML renderer.
 
-We use this at [Airudit](https://www.airudit.com/) to bundle documentation files. 
+We use `mdbook` at [Airudit](https://www.airudit.com/) to bundle documentation files.
 
 If you need a different template, feel free to create one based on [the built-in ones](https://github.com/Airudit/mdbook/tree/main/src/Airudit.MdBook.Core/res).
 
-To use a code library, you can use this basic code (see [unit test](src/Airudit.MdBook.UnitTests/UseAsCodeLibrary.cs)):
+To embed the renderer in your own tool, see [Use as a C# library](https://github.com/Airudit/mdbook/blob/main/help/library.en.md) —
+with a runnable [example](https://github.com/Airudit/mdbook/blob/main/src/Airudit.MdBook.UnitTests/UseAsCodeLibrary.cs).
 
-```csharp
-using Airudit.MdBook.Core;
-
-/// <summary>
-/// Create an HTML from Markdown path file
-/// </summary>
-public static void SimpleMdToHtml(string inputFilePath, string? templateFilePath)
-{
-    // configure
-    var sourceFile = new FileInfo(inputFilePath);
-    var layer = new SimpleMarkdownToHtmlLayer();
-    layer.AddFile(sourceFile, true);
-    layer.TemplateFilePath = templateFilePath;
-
-    // prepare stack
-    var context = new PackageContext();
-    context.AddLayer(layer);
-    var simpleConverterTask = new SimpleMarkdownToHtmlTask();
-    simpleConverterTask.Visit(context);
-
-    // generate the file
-    simpleConverterTask.Run(context);
-}
-```
+**Maintainers:** see [RELEASING.md](https://github.com/Airudit/mdbook/blob/main/RELEASING.md) for how releases are published.
 
