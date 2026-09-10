@@ -39,6 +39,24 @@ Example
 Rendering `index.md` produces a single page containing the introduction and setup
 sections inline.
 
+Included files are not pages
+----------------------------------------------------------------
+
+A file pulled in with `{{include: …}}` is treated as a **partial**: it is spliced into
+its host page and is **not** rendered as a standalone page. It gets no `X.md.html` of its
+own, and no entry in a `--Single-File` table of contents — so its content is never
+duplicated.
+
+If you also want a partial rendered on its own, name it **explicitly** on the command
+line and it is kept as a page:
+
+```
+mdbook book/ book/sections/intro.md
+```
+
+Here `intro.md` is both included by its host and rendered as its own page, because it was
+listed explicitly.
+
 When something goes wrong
 ----------------------------------------------------------------
 

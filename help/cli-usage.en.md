@@ -29,9 +29,11 @@ Option names are case-insensitive (`--export` and `--Export` are equal).
   locations. On its own this writes only into `<dir>` — the in-place files next
   to the sources are suppressed (see `--Side`).
 - `--Single-File <file>` — combine every rendered page into one HTML file at
-  `<file>`, prefixed with a table of contents linking to each page. On its own
-  this writes only the single file — the in-place files are suppressed (see
-  `--Side`).
+  `<file>`, prefixed with a table of contents that mirrors the source folder
+  structure and labels each page by its title (its first heading, or the file
+  name). Cross-page `.md` links resolve to in-file section anchors, so navigation
+  works within the one file. On its own this writes only the single file — the
+  in-place files are suppressed (see `--Side`).
 - `--Side` — also write each page's HTML in place, next to its source file. The
   in-place files are written by default, but are suppressed once `--Export` or
   `--Single-File` is given; pass `--Side` to keep writing them as well.
@@ -119,9 +121,12 @@ What gets written
   merges them into one document. Either one suppresses the in-place `X.md.html`
   files; add `--Side` to write those as well.
 - Local `.md` links inside the content are rewritten to `.md.html` so the
-  rendered book stays navigable.
+  rendered book stays navigable. With `--Single-File`, they instead resolve to the
+  target page's in-file `#anchor`.
 - Links to external URLs (`http`, `https`, `ftp`) get a `class="external"` so a
   template can style them.
+- Files pulled in with `{{include: …}}` are partials and are not written as pages
+  of their own (see [Including files](includes.en.md)).
 
 Ordering
 ----------------------------------------------------------------
