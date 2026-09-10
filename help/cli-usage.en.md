@@ -92,6 +92,11 @@ Environment variables
   used when `--Template` is not given on the command line. `--Template` always takes
   precedence, and an empty value is ignored (the built-in default is used). Handy for
   a shell session or CI where the same template is used for every call.
+- `MDBOOK_NUMBERED_SETEXT_FIX` — controls the fix that keeps a numbered setext heading
+  (`1. Title` over an `----` underline) parsing as a heading instead of an ordered-list
+  item followed by a thematic break. The fix is **on by default**; set the variable to
+  `0`, `false`, `off`, or `no` to opt out and get plain CommonMark parsing. Any other
+  value (or leaving it unset) keeps the fix on.
 
 Examples
 ----------------------------------------------------------------
