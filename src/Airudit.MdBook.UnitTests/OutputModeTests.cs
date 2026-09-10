@@ -130,6 +130,26 @@ public class OutputModeTests
         Assert.DoesNotContain("Processing markdown file", output);
     }
 
+    // --- issue #19: --single-file prints a completion summary ---
+
+    [Fact]
+    public void Single_file_prints_a_completion_summary_with_the_page_count_and_path()
+    {
+        using var dir = new TempTree(("a.md", "# a"), ("b.md", "# b"));
+        var single = Path.Combine(dir.Root, "all.html");
+        var output = RunCliCapture(dir.Root, "--single-file", single);
+        Assert.Contains("Combined 2 pages into " + Path.GetFullPath(single), output);
+    }
+
+    [Fact]
+    public void Single_file_summary_uses_the_singular_for_one_page()
+    {
+        using var dir = new TempTree(("a.md", "# a"));
+        var single = Path.Combine(dir.Root, "all.html");
+        var output = RunCliCapture(Path.Combine(dir.Root, "a.md"), "--single-file", single);
+        Assert.Contains("Combined 1 page into ", output);
+    }
+
     // --- issue #4: file ordering and de-duplication for the assembled output ---
 
     [Fact]

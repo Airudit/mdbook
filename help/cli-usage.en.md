@@ -33,7 +33,8 @@ Option names are case-insensitive (`--export` and `--Export` are equal).
   structure and labels each page by its title (its first heading, or the file
   name). Cross-page `.md` links resolve to in-file section anchors, so navigation
   works within the one file. On its own this writes only the single file — the
-  in-place files are suppressed (see `--Side`).
+  in-place files are suppressed (see `--Side`). On completion it prints a one-line
+  summary (`Combined N pages into <file>`).
 - `--Side` — also write each page's HTML in place, next to its source file. The
   in-place files are written by default, but are suppressed once `--Export` or
   `--Single-File` is given; pass `--Side` to keep writing them as well.

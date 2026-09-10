@@ -165,6 +165,12 @@ public class CombineMarkdownToHtmlTask : ITask
                 writer.WriteLine(pageContents);
             }
         }
+
+        // Confirm the combined file was written, mirroring the "Exporting to:" line --Export
+        // prints. This is a normal (non-verbose) summary; the per-page trace stays behind -v.
+        var pageCount = layer.Items.Count(item => item.IsMarkdown);
+        var interactor = context.GetSingleLayer<CommandLineLayer>();
+        interactor?.Out?.WriteLine("Combined " + pageCount + (pageCount == 1 ? " page into " : " pages into ") + Path.GetFullPath(path));
     }
 
     // Rewrites every local link in <paramref name="html"/> that points at another bundled
