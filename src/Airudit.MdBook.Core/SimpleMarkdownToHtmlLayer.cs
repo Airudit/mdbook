@@ -41,6 +41,13 @@ namespace Airudit.MdBook.Core
         public string SingleFile { get; set; }
 
         /// <summary>
+        /// With <see cref="SingleFile"/>, emit one combined file per detected language instead of
+        /// one merged file. The output path's <c>{lang}</c> placeholder (or an inserted
+        /// <c>.{lang}</c>) is substituted per language. Set by --bylang. See issue #22.
+        /// </summary>
+        public bool ByLang { get; set; }
+
+        /// <summary>
         /// Whether to write each page's HTML in place, next to its source file. On by default;
         /// turned off when an output destination (--single-file or --export) is given without
         /// an explicit --side request. See <see cref="CommandLineMarkdownToHtmlPrepareTask"/>.

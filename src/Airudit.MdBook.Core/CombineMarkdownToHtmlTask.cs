@@ -43,14 +43,64 @@ public class CombineMarkdownToHtmlTask : ITask
             throw new ArgumentNullException(nameof(context));
         }
 
-        var errors = 0;
-
         var layer = context.RequireSingleLayer<SimpleMarkdownToHtmlLayer>();
         if (layer?.SingleFile == null)
         {
+            // --ByLang only makes sense alongside --Single-File (issue #22).
+            if (layer?.ByLang == true)
+            {
+                context.GetSingleLayer<CommandLineLayer>()?.ErrorOut?.WriteLine("--ByLang requires --Single-File. ");
+            }
+
             return;
         }
 
+        if (!layer.ByLang)
+        {
+            this.CombineInto(context, layer, layer.Items, layer.SingleFile);
+            return;
+        }
+
+        // --ByLang: emit one combined book per detected language (issue #22). Regional variants
+        // are unified by their two-letter ISO code, so en, en-US and en-GB share one "en" book
+        // (each article still keeps its exact lang attribute). Language-neutral pages (no ".xx"
+        // suffix) are included in every language's book, so shared front-matter appears in each.
+        var languages = new List<string>();
+        foreach (var item in layer.Items)
+        {
+            if (item.IsMarkdown && item.Lang != null && !languages.Contains(item.Lang.TwoLetterISOLanguageName, StringComparer.OrdinalIgnoreCase))
+            {
+                languages.Add(item.Lang.TwoLetterISOLanguageName);
+            }
+        }
+
+        if (languages.Count == 0)
+        {
+            context.GetSingleLayer<CommandLineLayer>()?.ErrorOut?.WriteLine("--ByLang found no page with a detected language (a trailing \".xx\" in the file name). Nothing was written. ");
+            return;
+        }
+
+        foreach (var language in languages)
+        {
+            var subset = new List<SimpleMarkdownToHtmlLayerItem>();
+            foreach (var item in layer.Items)
+            {
+                if (!item.IsMarkdown || item.Lang == null || string.Equals(item.Lang.TwoLetterISOLanguageName, language, StringComparison.OrdinalIgnoreCase))
+                {
+                    subset.Add(item);
+                }
+            }
+
+            // The book represents the language, not a region, so its document-level {{{Lang}}}
+            // is the neutral two-letter code even when its pages carry regional tags.
+            this.CombineInto(context, layer, subset, SubstituteLangPlaceholder(layer.SingleFile, language), language);
+        }
+    }
+
+    // Builds one combined single-file document from the given pages and writes it to
+    // outputPath. Shared by the whole-book path and the per-language --ByLang path (issue #22).
+    private void CombineInto(PackageContext context, SimpleMarkdownToHtmlLayer layer, IReadOnlyList<SimpleMarkdownToHtmlLayerItem> items, string outputPath, string documentLang = null)
+    {
         // Assign each page a stable, path-based anchor slug (e.g. "guide/intro.md" ->
         // "guide-intro"), stored on the item so the table of contents, images and per-language
         // splitting can reuse it. Cross-page links are then resolved to these in-file anchors
@@ -58,7 +108,7 @@ public class CombineMarkdownToHtmlTask : ITask
         // positional) so adding or reordering a page does not shift another page's anchor.
         var slugBySource = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         var usedSlugs = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var page in layer.Items)
+        foreach (var page in items)
         {
             if (!page.IsMarkdown)
             {
@@ -71,7 +121,7 @@ public class CombineMarkdownToHtmlTask : ITask
 
         using var list = new StringWriter();
         list.WriteLine("<article id=list>");
-        WriteTableOfContents(list, layer.Items);
+        WriteTableOfContents(list, items);
         list.WriteLine("</article>");
         list.WriteLine();
         list.WriteLine();
@@ -79,7 +129,7 @@ public class CombineMarkdownToHtmlTask : ITask
         var langs = new Dictionary<string, int>();
         using var contents = new StringWriter();
 
-        foreach (var page in layer.Items)
+        foreach (var page in items)
         {
             if (!page.IsMarkdown)
             {
@@ -123,9 +173,10 @@ public class CombineMarkdownToHtmlTask : ITask
         // - {{{Contents}}}   the markdown-converted HTML part
         // - {{{Lang}}}       the page's lang
         // - {{{Info}}}       a information string
-        var langName = langs.Count > 0 ? langs.OrderByDescending(x => x.Value).First().Key : "en-US";
+        // --ByLang passes the book's neutral language; otherwise use the pages' majority language.
+        var langName = documentLang ?? (langs.Count > 0 ? langs.OrderByDescending(x => x.Value).First().Key : "en-US");
         var lang = new CultureInfo(langName);
-        var title = Path.GetFileNameWithoutExtension(layer.SingleFile);
+        var title = Path.GetFileNameWithoutExtension(outputPath);
         var pageContents = replacer.Replace(layer.Template, new MatchEvaluator(match =>
         {
             var key = match.Groups[1].Value;
@@ -156,7 +207,7 @@ public class CombineMarkdownToHtmlTask : ITask
             }
         }));
 
-        var path = layer.SingleFile;
+        var path = outputPath;
         using (var file = new FileStream(path, FileMode.OpenOrCreate, FileAccess.Write, FileShare.None))
         {
             file.SetLength(0L);
@@ -168,9 +219,27 @@ public class CombineMarkdownToHtmlTask : ITask
 
         // Confirm the combined file was written, mirroring the "Exporting to:" line --Export
         // prints. This is a normal (non-verbose) summary; the per-page trace stays behind -v.
-        var pageCount = layer.Items.Count(item => item.IsMarkdown);
+        var pageCount = items.Count(item => item.IsMarkdown);
         var interactor = context.GetSingleLayer<CommandLineLayer>();
         interactor?.Out?.WriteLine("Combined " + pageCount + (pageCount == 1 ? " page into " : " pages into ") + Path.GetFullPath(path));
+    }
+
+    // Builds the per-language output path for --ByLang (issue #22). A "{lang}" placeholder in the
+    // path is replaced with the language code; if the path has no placeholder, ".{lang}" is
+    // inserted before the extension, so "book.html" becomes "book.en.html" (decision 1a).
+    private static string SubstituteLangPlaceholder(string path, string language)
+    {
+        const string placeholder = "{lang}";
+        if (path.Contains(placeholder, StringComparison.Ordinal))
+        {
+            return path.Replace(placeholder, language, StringComparison.Ordinal);
+        }
+
+        var directory = Path.GetDirectoryName(path);
+        var fileName = Path.GetFileNameWithoutExtension(path);
+        var extension = Path.GetExtension(path); // includes the leading dot, or empty
+        var newName = fileName + "." + language + extension;
+        return string.IsNullOrEmpty(directory) ? newName : Path.Combine(directory, newName);
     }
 
     // Rewrites every local link in <paramref name="html"/> that points at another bundled

@@ -32,6 +32,7 @@ namespace Airudit.MdBook.Core
             var isVersion = false;
             var sideExplicit = false;
             var verbose = false;
+            var byLang = false;
             var errors = new List<string>();
             var inputs = new List<FileSystemInfo>();
             using var args = new ParseArgs(interactor.Arguments);
@@ -53,6 +54,10 @@ namespace Airudit.MdBook.Core
                 else if (args.Is("--verbose", "-v"))
                 {
                     verbose = true;
+                }
+                else if (args.Is(arg = "--bylang"))
+                {
+                    byLang = true;
                 }
                 else if (args.Is(arg = "--export"))
                 {
@@ -166,6 +171,9 @@ namespace Airudit.MdBook.Core
                 interactor.Out.WriteLine("Options: ");
                 interactor.Out.WriteLine("    --Export <dir>        Exports the generated documentation to this directory");
                 interactor.Out.WriteLine("    --Single-File <file>  Exports the generated documentation to a single file");
+                interactor.Out.WriteLine("    --ByLang              With --Single-File, write one combined file per detected");
+                interactor.Out.WriteLine("                          language. Put \"{lang}\" in the file path (e.g. book.{lang}.html)");
+                interactor.Out.WriteLine("                          or \".{lang}\" is inserted before the extension.");
                 interactor.Out.WriteLine("    --Side                Also writes each page's HTML next to its source file.");
                 interactor.Out.WriteLine("                          These in-place files are written by default, but are");
                 interactor.Out.WriteLine("                          suppressed once --Single-File or --Export is given; pass");
@@ -200,6 +208,7 @@ namespace Airudit.MdBook.Core
             // unless --side is passed to keep writing them as well.
             layer.SideBySide = sideExplicit || (layer.SingleFile == null && layer.Exports.Count == 0);
             layer.Verbose = verbose;
+            layer.ByLang = byLang;
 
             // verify exports
             for (int e = 0; e < layer.Exports.Count; e++)

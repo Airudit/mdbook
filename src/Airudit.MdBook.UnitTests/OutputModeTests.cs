@@ -150,6 +150,84 @@ public class OutputModeTests
         Assert.Contains("Combined 1 page into ", output);
     }
 
+    // --- issue #22: --ByLang emits one --single-file per detected language ---
+
+    [Fact]
+    public void ByLang_emits_one_combined_file_per_detected_language()
+    {
+        using var dir = new TempTree(("README.en.md", "# Home"), ("guide.fr.md", "# Guide"));
+        RunCli(dir.Root, "--single-file", Path.Combine(dir.Root, "book.{lang}.html"), "--bylang");
+        Assert.True(File.Exists(Path.Combine(dir.Root, "book.en.html")));
+        Assert.True(File.Exists(Path.Combine(dir.Root, "book.fr.html")));
+    }
+
+    [Fact]
+    public void ByLang_puts_only_that_languages_pages_in_each_book()
+    {
+        using var dir = new TempTree(("README.en.md", "# English home"), ("guide.fr.md", "# Accueil francais"));
+        RunCli(dir.Root, "--single-file", Path.Combine(dir.Root, "book.{lang}.html"), "--bylang");
+        var en = File.ReadAllText(Path.Combine(dir.Root, "book.en.html"));
+        var fr = File.ReadAllText(Path.Combine(dir.Root, "book.fr.html"));
+        Assert.Contains("English home", en);
+        Assert.DoesNotContain("Accueil francais", en);
+        Assert.Contains("Accueil francais", fr);
+        Assert.DoesNotContain("English home", fr);
+    }
+
+    [Fact]
+    public void ByLang_unifies_regional_variants_into_one_book_per_language()
+    {
+        using var dir = new TempTree(("a.en.md", "# Plain EN"), ("b.en-US.md", "# US EN"), ("c.en-GB.md", "# GB EN"));
+        RunCli(dir.Root, "--single-file", Path.Combine(dir.Root, "book.{lang}.html"), "--bylang");
+        // en, en-US and en-GB collapse into a single "en" book...
+        Assert.True(File.Exists(Path.Combine(dir.Root, "book.en.html")));
+        Assert.False(File.Exists(Path.Combine(dir.Root, "book.en-US.html")));
+        var en = File.ReadAllText(Path.Combine(dir.Root, "book.en.html"));
+        Assert.Contains("Plain EN", en);
+        Assert.Contains("US EN", en);
+        Assert.Contains("GB EN", en);
+        // ...the book's document language is the neutral code, but each article keeps its exact tag.
+        Assert.Contains("<html lang=\"en\"", en);
+        Assert.Contains("lang=\"en-US\"", en);
+        Assert.Contains("lang=\"en-GB\"", en);
+    }
+
+    [Fact]
+    public void ByLang_includes_language_neutral_pages_in_every_book()
+    {
+        using var dir = new TempTree(("README.en.md", "# Home"), ("guide.fr.md", "# Guide"), ("shared.md", "# Shared notice"));
+        RunCli(dir.Root, "--single-file", Path.Combine(dir.Root, "book.{lang}.html"), "--bylang");
+        Assert.Contains("Shared notice", File.ReadAllText(Path.Combine(dir.Root, "book.en.html")));
+        Assert.Contains("Shared notice", File.ReadAllText(Path.Combine(dir.Root, "book.fr.html")));
+    }
+
+    [Fact]
+    public void ByLang_without_a_placeholder_inserts_the_lang_before_the_extension()
+    {
+        using var dir = new TempTree(("README.en.md", "# Home"), ("guide.fr.md", "# Guide"));
+        RunCli(dir.Root, "--single-file", Path.Combine(dir.Root, "book.html"), "--bylang");
+        Assert.True(File.Exists(Path.Combine(dir.Root, "book.en.html")));
+        Assert.True(File.Exists(Path.Combine(dir.Root, "book.fr.html")));
+    }
+
+    [Fact]
+    public void ByLang_without_single_file_reports_an_error()
+    {
+        using var dir = new TempTree(("README.en.md", "# Home"));
+        var error = RunCliCaptureError(dir.Root, "--bylang");
+        Assert.Contains("--ByLang requires --Single-File", error);
+    }
+
+    [Fact]
+    public void ByLang_with_no_detected_language_reports_and_writes_nothing()
+    {
+        using var dir = new TempTree(("plain.md", "# Plain"));
+        var single = Path.Combine(dir.Root, "book.{lang}.html");
+        var error = RunCliCaptureError(dir.Root, "--single-file", single, "--bylang");
+        Assert.Contains("no page with a detected language", error);
+        Assert.False(File.Exists(Path.Combine(dir.Root, "book.{lang}.html")));
+    }
+
     // --- issue #4: file ordering and de-duplication for the assembled output ---
 
     [Fact]
@@ -483,9 +561,22 @@ public class OutputModeTests
     // Same as RunCli but returns everything written to standard output during the run.
     private static string RunCliCapture(params string[] args)
     {
+        return RunCliCore(args).Out;
+    }
+
+    // Same as RunCli but returns everything written to standard error during the run.
+    private static string RunCliCaptureError(params string[] args)
+    {
+        return RunCliCore(args).Error;
+    }
+
+    // Runs the whole task pipeline with the built-in template, capturing both output streams.
+    private static (string Out, string Error) RunCliCore(string[] args)
+    {
         var output = new StringWriter();
+        var error = new StringWriter();
         var context = new PackageContext();
-        context.AddLayer(new CommandLineLayer(output, new StringWriter(), new StringReader(string.Empty),
+        context.AddLayer(new CommandLineLayer(output, error, new StringReader(string.Empty),
             args.Concat(new[] { "--template", "builtin:default.light.html" }).ToArray()));
         var tasks = new ITask[]
         {
@@ -509,7 +600,7 @@ public class OutputModeTests
             task.Run(context);
         }
 
-        return output.ToString();
+        return (output.ToString(), error.ToString());
     }
 
     // A throwaway directory tree of source files, removed on dispose.

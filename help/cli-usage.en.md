@@ -35,6 +35,14 @@ Option names are case-insensitive (`--export` and `--Export` are equal).
   works within the one file. On its own this writes only the single file — the
   in-place files are suppressed (see `--Side`). On completion it prints a one-line
   summary (`Combined N pages into <file>`).
+- `--ByLang` — with `--Single-File`, write one combined file **per language** instead
+  of one merged document. A page's language comes from a trailing `.xx` in its file name
+  (`README.en.md` → `en`); regional variants are unified by their two-letter code, so
+  `en`, `en-US` and `en-GB` share one `en` book (each section keeps its exact language).
+  Put a `{lang}` placeholder in the output path (`book.{lang}.html` → `book.en.html`,
+  `book.fr.html`); with no placeholder, `.{lang}` is inserted before the extension
+  (`book.html` → `book.en.html`). Language-neutral pages (no `.xx` suffix) are included in
+  every language's book. Requires `--Single-File`.
 - `--Side` — also write each page's HTML in place, next to its source file. The
   in-place files are written by default, but are suppressed once `--Export` or
   `--Single-File` is given; pass `--Side` to keep writing them as well.
@@ -89,6 +97,12 @@ Build the combined file but keep the per-page files next to the sources too:
 
 ```bash
 mdbook docs/ --Single-File docs.html --Side
+```
+
+Build one combined file per language from a multilingual folder:
+
+```bash
+mdbook docs/ --Single-File docs.{lang}.html --ByLang
 ```
 
 Render with the dark built-in template:
