@@ -2,16 +2,31 @@
 [Airudit.MdBook](https://github.com/Airudit/mdbook)
 =========
 
-turns a collection a markdown/commonmark files into a (digital) book
+turns a collection of markdown/commonmark files into a (digital) book
 
 - nuget `Airudit.MdBook` is the dotnet tool at [nuget.org](https://www.nuget.org/packages/Airudit.MdBook)
 - nuget `Airudit.MdBook.Core` is the code library at [nuget.org](https://www.nuget.org/packages/Airudit.MdBook.Core)
+
+Features
+------------------------------------
+
+- Render Markdown / CommonMark to standalone, self-contained HTML — inline CSS, no
+  external CDN, both screen- and print-friendly.
+- **Single-file books** — combine a whole folder into one HTML file with a nested
+  table of contents and working in-file links. See
+  [Single-file books](help/single-file.en.md).
+- **`--ByLang`** — one combined book per language for multilingual sources.
+- Output in place, into a directory (`--Export`), or as a single file — or several at
+  once; runs quiet by default, with `--Verbose` for a per-page trace.
+- Composable pages with `{{include: …}}`, automatic link rewriting, and a code library
+  for embedding the renderer in your own tools.
 
 Documentation
 ------------------------------------
 
 Full user guide in [`help/`](help/README.en.md): getting started, command-line
-usage, templates and placeholders, file includes, and using the code library.
+usage, single-file books, templates and placeholders, file includes, and using the
+code library.
 
 Usage
 ------------------------------------
@@ -21,22 +36,42 @@ mdbook --help
 ```
 
 ```
-Airudit.MdBook – Usage  
+Airudit.MdBook – Usage
 
-This will generate HTML files for each specified markdown file.  
+This command will generate HTML files for each specified markdown file.
 
-MarkdownToHtml command usage:  
-    mdbook {file path}+ [options]    
+command usage:
+    mdbook {file path}+ [options]
 
-Options:  
-    --Export <dir>        Exports the generated documentation to this directory  
-    --Single-File <file>  Exports the generated documentation to a single file  
-    --Template <file>     Specifies the HTML template file path  
-    --Copyright <str>     Specifies a copyright notice  
- 
-Built-in templates:  
-    --Template builtin:default.light.html  
-    --Template builtin:default.dark.html    
+Output modes (default: write X.md.html next to each source):
+    --Export <dir>        Copy the generated pages into <dir> (mirrored paths)
+    --Single-File <file>  Combine every page into one self-contained HTML file
+    --Side                Also write the in-place files. They are on by default but
+                          suppressed once --Export or --Single-File is given; pass
+                          --Side to keep writing them as well.
+
+Single-file options:
+    --ByLang              With --Single-File, write one combined file per detected
+                          language. Put "{lang}" in the file path (e.g. book.{lang}.html);
+                          otherwise ".{lang}" is inserted before the extension.
+
+Rendering:
+    --Template <file>     HTML template file path, or a builtin: name (see below)
+    --Copyright <str>     Copyright notice, exposed to the template as {{{Copyright}}}
+
+Output & info:
+    --Verbose, -v         Print a per-page trace while rendering (quiet by default)
+    --Version             Print the tool version and exit
+
+Built-in templates:
+    --Template builtin:default.light.html
+    --Template builtin:default.dark.html
+
+Environment variables:
+    MDBOOK_TEMPLATE       Default template used when --Template is not given
+    MDBOOK_COPYRIGHT      Default copyright notice used when --Copyright is not given
+    MDBOOK_NUMBERED_SETEXT_FIX
+                          Set to 0/false/off/no to disable the numbered setext fix
 ```
 
 Make HTML files from MD files now:
