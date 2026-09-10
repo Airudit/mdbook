@@ -69,10 +69,14 @@ public class CombineMarkdownToHtmlTask : ITask
             slugBySource[page.SourceFile.FullName] = page.Anchor;
         }
 
-        var langs = new Dictionary<string, int>();
         using var list = new StringWriter();
         list.WriteLine("<article id=list>");
-        list.WriteLine("<ul>");
+        WriteTableOfContents(list, layer.Items);
+        list.WriteLine("</article>");
+        list.WriteLine();
+        list.WriteLine();
+
+        var langs = new Dictionary<string, int>();
         using var contents = new StringWriter();
 
         foreach (var page in layer.Items)
@@ -102,10 +106,6 @@ public class CombineMarkdownToHtmlTask : ITask
                     langs[page.Lang.Name] = count = 0;
                 }
             }
-
-            list.Write("<li><a href=\"#" + elementId + "\">");
-            list.Write(HttpUtility.HtmlEncode(page.SourceFile.Name));
-            list.WriteLine("</a></li>");
            
             contents.WriteLine();
             contents.WriteLine("<article id=\"" + elementId + "\"" + langAttribute + ">");
@@ -116,11 +116,6 @@ public class CombineMarkdownToHtmlTask : ITask
             contents.WriteLine();
         }
         
-        list.WriteLine("</ul>");
-        list.WriteLine("</article>");
-        list.WriteLine();
-        list.WriteLine();
-
         // substitute HTML template variables
         // don't forget to HTML-escape strings!
         // known variables are: 
@@ -217,6 +212,106 @@ public class CombineMarkdownToHtmlTask : ITask
         });
     }
 
+    // Writes a nested table of contents that mirrors the source directory tree: pages are
+    // grouped under their folders, folders shown as plain-text labels and pages as anchor
+    // links (issue #18). The longest folder prefix shared by every page is dropped, so a
+    // single "mdbook book/" run does not wrap everything in a redundant "book" node.
+    private static void WriteTableOfContents(TextWriter list, IEnumerable<SimpleMarkdownToHtmlLayerItem> items)
+    {
+        var pages = items.Where(item => item.IsMarkdown).ToList();
+        var commonPrefix = CommonFolderPrefixLength(pages);
+        var root = new TocNode();
+        foreach (var page in pages)
+        {
+            var relativePath = page.RelativePath;
+            var node = root;
+            if (relativePath != null)
+            {
+                // walk the folder segments (everything but the file name), skipping the shared prefix
+                for (var i = commonPrefix; i < relativePath.Length - 1; i++)
+                {
+                    node = node.GetOrAddFolder(relativePath[i]);
+                }
+            }
+
+            node.Children.Add(new TocNode { Name = TableOfContentsLabel(page), Anchor = page.Anchor });
+        }
+
+        RenderTableOfContents(list, root.Children);
+    }
+
+    // Emits a <ul> for a level of the TOC tree: file nodes as "<li><a href="#slug">name</a>",
+    // folder nodes as "<li>name<ul>...</ul></li>".
+    private static void RenderTableOfContents(TextWriter list, List<TocNode> nodes)
+    {
+        list.WriteLine("<ul>");
+        foreach (var node in nodes)
+        {
+            if (node.Anchor != null)
+            {
+                list.Write("<li><a href=\"#" + node.Anchor + "\">");
+                list.Write(HttpUtility.HtmlEncode(node.Name));
+                list.WriteLine("</a></li>");
+            }
+            else
+            {
+                list.Write("<li>");
+                list.Write(HttpUtility.HtmlEncode(node.Name));
+                RenderTableOfContents(list, node.Children);
+                list.WriteLine("</li>");
+            }
+        }
+
+        list.WriteLine("</ul>");
+    }
+
+    // A page's table-of-contents label: its first level-1 heading, or the file name with a
+    // trailing ".md" removed when the page has no heading.
+    private static string TableOfContentsLabel(SimpleMarkdownToHtmlLayerItem page)
+    {
+        if (!string.IsNullOrWhiteSpace(page.Title))
+        {
+            return page.Title;
+        }
+
+        var name = page.SourceFile.Name;
+        return name.EndsWith(".md", StringComparison.OrdinalIgnoreCase)
+            ? name.Substring(0, name.Length - ".md".Length)
+            : name;
+    }
+
+    // The number of leading folder segments shared by every page (the file name excluded),
+    // so that common ancestry is not repeated in the table of contents.
+    private static int CommonFolderPrefixLength(List<SimpleMarkdownToHtmlLayerItem> pages)
+    {
+        if (pages.Count == 0)
+        {
+            return 0;
+        }
+
+        var shortestFolderDepth = int.MaxValue;
+        foreach (var page in pages)
+        {
+            var folderDepth = Math.Max(0, (page.RelativePath?.Length ?? 0) - 1);
+            shortestFolderDepth = Math.Min(shortestFolderDepth, folderDepth);
+        }
+
+        var prefix = 0;
+        for (; prefix < shortestFolderDepth; prefix++)
+        {
+            var segment = pages[0].RelativePath![prefix];
+            foreach (var page in pages)
+            {
+                if (!string.Equals(page.RelativePath![prefix], segment, StringComparison.Ordinal))
+                {
+                    return prefix;
+                }
+            }
+        }
+
+        return prefix;
+    }
+
     // A page's anchor slug, made unique within the document by appending -2, -3, ... on
     // collision (deterministic by document order).
     private static string MakeUniqueSlug(SimpleMarkdownToHtmlLayerItem item, HashSet<string> used)
@@ -271,5 +366,32 @@ public class CombineMarkdownToHtmlTask : ITask
         }
 
         return tokens.Count > 0 ? string.Join("-", tokens) : "page";
+    }
+
+    // A node in the table-of-contents tree: a file leaf (<see cref="Anchor"/> set) or a
+    // folder (children only). Folders keep an index so the same directory is reused while
+    // children preserve first-seen (document) order.
+    private sealed class TocNode
+    {
+        private Dictionary<string, TocNode>? folders;
+
+        public string Name { get; set; } = string.Empty;
+
+        public string? Anchor { get; set; }
+
+        public List<TocNode> Children { get; } = new List<TocNode>();
+
+        public TocNode GetOrAddFolder(string name)
+        {
+            this.folders ??= new Dictionary<string, TocNode>(StringComparer.Ordinal);
+            if (!this.folders.TryGetValue(name, out var child))
+            {
+                child = new TocNode { Name = name };
+                this.folders[name] = child;
+                this.Children.Add(child);
+            }
+
+            return child;
+        }
     }
 }

@@ -279,6 +279,64 @@ public class OutputModeTests
         Assert.Contains("<article id=\"readme\">", html);
     }
 
+    // --- issue #18: the table of contents mirrors the source directory tree ---
+
+    [Fact]
+    public void Single_file_toc_nests_pages_under_their_folders()
+    {
+        using var dir = new TempTree(
+            ("doc/README.md", "# Home"),
+            ("doc/appendix.md", "# Appendix"),
+            ("doc/guide/intro.md", "# Intro"));
+        var toc = TableOfContents(RenderSingleFile(dir, "all.html", Path.Combine(dir.Root, "doc")));
+
+        // top-level pages (labelled by their H1), then a plain-text "guide" folder with the
+        // page nested under it
+        Assert.Contains("<li><a href=\"#doc-readme\">Home</a></li>", toc);
+        Assert.Contains("<li>guide<ul>", toc);
+        Assert.Contains("<li><a href=\"#doc-guide-intro\">Intro</a></li>", toc);
+        // the shared root folder is stripped, not shown as a wrapper node
+        Assert.DoesNotContain("<li>doc<ul>", toc);
+    }
+
+    [Fact]
+    public void Single_file_toc_is_flat_when_there_are_no_subfolders()
+    {
+        using var dir = new TempTree(("a.md", "# A"), ("b.md", "# B"));
+        var toc = TableOfContents(RenderSingleFile(dir, "all.html",
+            Path.Combine(dir.Root, "a.md"), Path.Combine(dir.Root, "b.md")));
+
+        Assert.Contains("<li><a href=\"#a\">A</a></li>", toc);
+        Assert.DoesNotContain("<ul>\n<ul>", toc); // no nested list
+    }
+
+    [Fact]
+    public void Single_file_toc_labels_use_the_article_h1_title()
+    {
+        using var dir = new TempTree(("readme.md", "# Welcome Aboard\n\nhi"));
+        var toc = TableOfContents(RenderSingleFile(dir, "all.html", Path.Combine(dir.Root, "readme.md")));
+
+        Assert.Contains("<li><a href=\"#readme\">Welcome Aboard</a></li>", toc);
+    }
+
+    [Fact]
+    public void Single_file_toc_label_falls_back_to_the_filename_without_md_when_no_heading()
+    {
+        using var dir = new TempTree(("notes.md", "Just a paragraph, no heading."));
+        var toc = TableOfContents(RenderSingleFile(dir, "all.html", Path.Combine(dir.Root, "notes.md")));
+
+        Assert.Contains("<li><a href=\"#notes\">notes</a></li>", toc);
+        Assert.DoesNotContain("notes.md</a>", toc);
+    }
+
+    // Extracts the "<article id=list>...</article>" table-of-contents block.
+    private static string TableOfContents(string html)
+    {
+        var start = html.IndexOf("<article id=list>", StringComparison.Ordinal);
+        var end = html.IndexOf("</article>", start, StringComparison.Ordinal);
+        return html.Substring(start, end - start);
+    }
+
     // Runs the whole pipeline into a single file and returns its HTML.
     private static string RenderSingleFile(TempTree dir, string singleFileName, params string[] inputs)
     {

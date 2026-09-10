@@ -148,6 +148,10 @@ namespace Airudit.MdBook.Core
             this.AppendFile(item, dom, item.SourceFile, string.Empty, new HashSet<string>(StringComparer.OrdinalIgnoreCase), new IncludeCounter());
             this.RewriteLocalLinks(item, dom);
 
+            // Remember the page's first level-1 heading; the single-file table of contents
+            // uses it as the page label instead of the bare file name.
+            item.Title = ExtractFirstHeadingTitle(dom);
+
             // generate HTML
             string htmlContents = Markdown.ToHtml(dom, this.layer.Pipeline);
 
@@ -455,6 +459,21 @@ namespace Airudit.MdBook.Core
             var block = document[0];
             document.RemoveAt(0);
             return block;
+        }
+
+        // The text of the document's first level-1 heading, or null when there is none.
+        private static string? ExtractFirstHeadingTitle(MarkdownDocument dom)
+        {
+            foreach (var heading in dom.Descendants().OfType<HeadingBlock>())
+            {
+                if (heading.Level == 1)
+                {
+                    var text = GetInlineText(heading.Inline).Trim();
+                    return text.Length > 0 ? text : null;
+                }
+            }
+
+            return null;
         }
 
         // Concatenates the literal text of an inline container, used to read a directive

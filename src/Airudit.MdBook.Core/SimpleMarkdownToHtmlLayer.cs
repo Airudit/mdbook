@@ -87,6 +87,12 @@ namespace Airudit.MdBook.Core
         public string? HtmlContents { get; set; }
 
         /// <summary>
+        /// The page's first level-1 heading text, if any. Used as its table-of-contents label
+        /// in a <c>--single-file</c> bundle, falling back to the file name when absent.
+        /// </summary>
+        public string? Title { get; set; }
+
+        /// <summary>
         /// The page's stable, path-based anchor slug within a <c>--single-file</c> bundle
         /// (e.g. "guide/intro.md" -> "guide-intro"). Assigned by
         /// <see cref="CombineMarkdownToHtmlTask"/>; used as the page's <c>&lt;article id&gt;</c>,
