@@ -39,11 +39,11 @@ browser extension that saves a whole page as one self-contained HTML file. I wan
 but generated from your sources instead of scraped from a rendered page.
 
 > **Where this stands today.** mdbook already renders self-contained HTML, builds
-> single-file books, prints, and handles `--ByLang` and includes. Two honest caveats: the
-> "everything lives inside it" promise holds for text and styling but *not yet* for images
-> — those are still referenced by path, and inlining them is on the roadmap
-> ([#21](https://github.com/Airudit/mdbook/issues/21)) — and the in-file search and richer
-> navigation described below are direction, not shipped.
+> single-file books with their images inlined
+> ([#13](https://github.com/Airudit/mdbook/issues/13),
+> [#21](https://github.com/Airudit/mdbook/issues/21)), prints, and handles `--ByLang` and
+> includes. One honest caveat: the in-file search and richer navigation described below are
+> direction, not shipped.
 
 What mdbook will — and won't — become
 ----------------------------------------------------------------

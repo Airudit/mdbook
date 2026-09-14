@@ -4,8 +4,7 @@ Single-file books
 Combining a whole folder into one self-contained HTML document is `mdbook`'s headline
 capability. Instead of a directory of pages and assets, you get a **single file** you can
 email, print, drop onto a share, or ship next to an application — it carries its own table
-of contents, navigates itself, and needs nothing alongside it (with one caveat on images,
-below).
+of contents, navigates itself, and — with its images inlined — needs nothing alongside it.
 
 Building one
 ----------------------------------------------------------------
@@ -59,6 +58,23 @@ target page's **in-file anchor** (`#slug`), so navigation works inside the singl
 - A heading-level fragment on a cross-page link is dropped: auto-generated heading ids are
   not unique across the merged document, so only the page-level anchor resolves reliably.
 
+Self-contained images
+----------------------------------------------------------------
+
+For the single file to be truly self-contained, its images have to travel inside it. So
+under `--Single-File`, `mdbook` **inlines local images by default**: each image referenced
+by `![alt](path)` is embedded into the HTML as a `data:` URI, and the file keeps displaying
+it wherever it is moved.
+
+- The image's type is detected from its **content** (not its extension), so a mislabelled
+  file still renders.
+- **Remote** image URLs, **missing** files, and images already written as `data:` URIs are
+  left as references.
+- Pass `--No-Embed` to turn inlining off and keep every image as an external reference.
+  Outside `--Single-File`, inlining is off unless you ask for it with `--Embed`.
+
+See [`--Embed` in the command-line usage](cli-usage.en.md) for the full behaviour.
+
 One file per language
 ----------------------------------------------------------------
 
@@ -101,11 +117,6 @@ default; add `--Verbose` / `-v` to watch each page as it is processed.
 Known limitations
 ----------------------------------------------------------------
 
-- **Images are not embedded yet.** A local image referenced by a page still points at its
-  original relative path, so it does not travel inside the single file — move or ship the
-  file and its images break. Embedding them (as `data:` URIs) is tracked in
-  [issue #21](https://github.com/Airudit/mdbook/issues/21) (depends on #13). External image
-  URLs are unaffected.
 - **No cross-language fallback.** Under `--ByLang`, a document that exists in only one
   language is absent from the other languages' books; there is no automatic fallback to
   another language yet. Tracked in

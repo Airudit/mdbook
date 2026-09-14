@@ -31,8 +31,9 @@ back the in-place files whenever a destination would otherwise replace them.
   each file's relative path, and copies the non-Markdown files you link to (images,
   downloads) alongside. It may be given more than once to export to several places.
 - **Single file** — `--Single-File <file>` combines every page into one self-contained
-  HTML document with its own table of contents and in-file navigation. This is
-  `mdbook`'s headline output; see [Single-file books](single-file.en.md).
+  HTML document — its own table of contents, in-file navigation, and (by default) its
+  images inlined. This is `mdbook`'s headline output; see
+  [Single-file books](single-file.en.md).
 
 Giving `--Export` or `--Single-File` **suppresses** the in-place `X.md.html` files — the
 destination is assumed to be what you want. Pass `--Side` to keep writing them as well.
@@ -56,7 +57,8 @@ Option names are case-insensitive (`--export` and `--Export` are equal).
 
 - `--Export <dir>` — copy the generated HTML into `<dir>`, preserving each file's
   relative path. Files you linked to that are not Markdown (images, downloads)
-  are copied along too. May be given more than once to export to several
+  are copied along too, unless `--Embed` inlines the images instead. May be given
+  more than once to export to several
   locations. On its own this writes only into `<dir>` — the in-place files next
   to the sources are suppressed (see `--Side`).
 - `--Single-File <file>` — combine every rendered page into one self-contained HTML
@@ -72,6 +74,14 @@ Option names are case-insensitive (`--export` and `--Export` are equal).
   [Templates and placeholders](templates.en.md).
 - `--Copyright <str>` — a copyright notice made available to the template as
   `{{{Copyright}}}`.
+- `--Embed` — inline the local images referenced by `![alt](path)` into the HTML as
+  `data:` URIs, so the output stays self-contained once moved away from its source
+  folder. Off by default, but **on automatically with `--Single-File`** (an external
+  image would defeat the point of one self-contained file). Each image's type is
+  detected from its content; remote, missing and already-inlined images are left as
+  references, and a non-image file you link to is still copied/exported as before.
+- `--No-Embed` — opt out of image inlining, keeping every image as an external
+  reference even under `--Single-File`.
 - `--Verbose`, `-v` — print a per-page trace (`Processing markdown file "…"`) while
   rendering. A run is quiet by default; the in-place writes performed by `--Side`
   (or a default no-destination run) are reported either way.
@@ -114,6 +124,12 @@ Render a folder into a dedicated output directory:
 
 ```bash
 mdbook . --Export ~/docs/
+```
+
+Export self-contained pages, with their images inlined instead of copied alongside:
+
+```bash
+mdbook . --Export ~/docs/ --Embed
 ```
 
 Build one combined HTML file from every page in `docs/`:
