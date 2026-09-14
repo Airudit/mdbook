@@ -287,6 +287,125 @@ public class SimpleMarkdownToHtmlTaskTests
         }
     }
 
+    // --- issues #13 / #21: --Embed inlines local images as data: URIs ---
+
+    // A real 1x1 transparent PNG; its base64 carries a '+', so an escaping bug in the URL
+    // attribute would corrupt the payload and fail the round-trip assertion below.
+    private const string OnePixelPngBase64 =
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
+
+    [Fact]
+    public void Embed_inlines_a_local_png_as_a_data_uri()
+    {
+        var png = Convert.FromBase64String(OnePixelPngBase64);
+        var (html, _) = RenderWithAssets("doc.md", "![a picture](pic.png)", new() { ["pic.png"] = png }, embed: true);
+
+        // The exact base64 must survive verbatim in the src (no escaping of '+' / '/').
+        Assert.Contains("data:image/png;base64," + OnePixelPngBase64, html);
+        Assert.DoesNotContain("src=\"pic.png\"", html);
+        Assert.Contains("alt=\"a picture\"", html);
+    }
+
+    [Fact]
+    public void Embed_detects_media_type_from_content_not_extension()
+    {
+        // A PNG mislabelled ".jpg": content sniffing must still emit image/png.
+        var png = Convert.FromBase64String(OnePixelPngBase64);
+        var (html, _) = RenderWithAssets("doc.md", "![x](pic.jpg)", new() { ["pic.jpg"] = png }, embed: true);
+        Assert.Contains("data:image/png;base64,", html);
+    }
+
+    [Fact]
+    public void Embed_inlines_a_local_svg_as_an_svg_data_uri()
+    {
+        var svg = Encoding.UTF8.GetBytes("<svg xmlns=\"http://www.w3.org/2000/svg\"></svg>");
+        var (html, _) = RenderWithAssets("doc.md", "![v](pic.svg)", new() { ["pic.svg"] = svg }, embed: true);
+        Assert.Contains("data:image/svg+xml;base64,", html);
+    }
+
+    [Fact]
+    public void Without_embed_a_local_image_stays_a_reference()
+    {
+        var png = Convert.FromBase64String(OnePixelPngBase64);
+        var (html, _) = RenderWithAssets("doc.md", "![a](pic.png)", new() { ["pic.png"] = png }, embed: false);
+        Assert.Contains("src=\"pic.png\"", html);
+        Assert.DoesNotContain("data:image", html);
+    }
+
+    [Fact]
+    public void Embed_leaves_a_missing_image_as_a_reference()
+    {
+        var (html, _) = RenderWithAssets("doc.md", "![a](missing.png)", new(), embed: true);
+        Assert.Contains("src=\"missing.png\"", html);
+        Assert.DoesNotContain("data:image", html);
+    }
+
+    [Fact]
+    public void Embed_leaves_a_remote_image_as_a_reference()
+    {
+        var (html, _) = RenderWithAssets("doc.md", "![a](https://example.com/pic.png)", new(), embed: true);
+        Assert.Contains("src=\"https://example.com/pic.png\"", html);
+        Assert.DoesNotContain("data:image", html);
+    }
+
+    [Fact]
+    public void Embed_still_exports_a_non_image_local_link()
+    {
+        var png = Convert.FromBase64String(OnePixelPngBase64);
+        var (_, layer) = RenderWithAssets(
+            "doc.md",
+            "![a](pic.png)\n\n[grab](file.pdf)",
+            new() { ["pic.png"] = png, ["file.pdf"] = new byte[] { 1, 2, 3 } },
+            embed: true);
+
+        var assets = layer.Items.Where(i => !i.IsMarkdown).ToList();
+        Assert.Contains(assets, i => i.SourceFile.Name.Equals("file.pdf", StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(assets, i => i.SourceFile.Name.Equals("pic.png", StringComparison.OrdinalIgnoreCase));
+    }
+
+    // Renders one Markdown file plus a set of binary sibling assets through the real task,
+    // returning both the output HTML and the layer (so asset/export registration can be
+    // inspected). Used for --Embed image scenarios.
+    private static (string Html, SimpleMarkdownToHtmlLayer Layer) RenderWithAssets(
+        string fileName, string markdown, Dictionary<string, byte[]> assets, bool embed)
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), "mdbook-tests-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempDir);
+        try
+        {
+            var templatePath = Path.Combine(tempDir, "template.html");
+            File.WriteAllText(templatePath, Template, Encoding.UTF8);
+
+            var sourcePath = Path.Combine(tempDir, fileName);
+            File.WriteAllText(sourcePath, markdown, Encoding.UTF8);
+
+            foreach (var (relativePath, bytes) in assets)
+            {
+                var assetPath = Path.Combine(tempDir, relativePath);
+                Directory.CreateDirectory(Path.GetDirectoryName(assetPath)!);
+                File.WriteAllBytes(assetPath, bytes);
+            }
+
+            var layer = new SimpleMarkdownToHtmlLayer();
+            var item = layer.AddFile(new FileInfo(sourcePath), true);
+            item.RelativePath = new[] { fileName };
+            layer.TemplateFilePath = templatePath;
+            layer.Embed = embed;
+
+            var context = new PackageContext();
+            context.AddLayer(layer);
+            var task = new SimpleMarkdownToHtmlTask();
+            task.Visit(context);
+            task.Run(context);
+
+            return (File.ReadAllText(sourcePath + ".html", Encoding.UTF8), layer);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, true);
+        }
+    }
+
     // Renders one Markdown file through the real task and returns the output HTML.
     private static string RenderToHtml(string fileName, string markdown, string? copyright = null)
     {

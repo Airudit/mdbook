@@ -33,6 +33,8 @@ namespace Airudit.MdBook.Core
             var sideExplicit = false;
             var verbose = false;
             var byLang = false;
+            var embedExplicit = false;
+            var noEmbed = false;
             var errors = new List<string>();
             var inputs = new List<FileSystemInfo>();
             using var args = new ParseArgs(interactor.Arguments);
@@ -58,6 +60,14 @@ namespace Airudit.MdBook.Core
                 else if (args.Is(arg = "--bylang"))
                 {
                     byLang = true;
+                }
+                else if (args.Is(arg = "--embed"))
+                {
+                    embedExplicit = true;
+                }
+                else if (args.Is(arg = "--no-embed"))
+                {
+                    noEmbed = true;
                 }
                 else if (args.Is(arg = "--export"))
                 {
@@ -195,6 +205,9 @@ namespace Airudit.MdBook.Core
                 interactor.Out.WriteLine("Rendering: ");
                 interactor.Out.WriteLine("    --Template <file>     HTML template file path, or a builtin: name (see below)");
                 interactor.Out.WriteLine("    --Copyright <str>     Copyright notice, exposed to the template as {{{Copyright}}}");
+                interactor.Out.WriteLine("    --Embed               Inline local images as data: URIs so the output is self-");
+                interactor.Out.WriteLine("                          contained. On automatically with --Single-File.");
+                interactor.Out.WriteLine("    --No-Embed            Keep images as external references even with --Single-File.");
                 interactor.Out.WriteLine("");
                 interactor.Out.WriteLine("Output & info: ");
                 interactor.Out.WriteLine("    --Verbose, -v         Print a per-page trace while rendering (quiet by default)");
@@ -231,6 +244,11 @@ namespace Airudit.MdBook.Core
             layer.SideBySide = sideExplicit || (layer.SingleFile == null && layer.Exports.Count == 0);
             layer.Verbose = verbose;
             layer.ByLang = byLang;
+
+            // Inline images when asked (--Embed), and by default whenever a single file is
+            // produced — an external <img src> defeats the point of one self-contained file.
+            // --No-Embed opts out of both. See issues #13 and #21.
+            layer.Embed = !noEmbed && (embedExplicit || layer.SingleFile != null);
 
             // verify exports
             for (int e = 0; e < layer.Exports.Count; e++)

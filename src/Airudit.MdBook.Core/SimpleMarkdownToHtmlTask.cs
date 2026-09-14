@@ -217,6 +217,17 @@ namespace Airudit.MdBook.Core
             this.AppendFile(item, dom, item.SourceFile, string.Empty, new HashSet<string>(StringComparer.OrdinalIgnoreCase), new IncludeCounter());
             this.RewriteLocalLinks(item, dom);
 
+            // Inline local images as data: URIs so the page stays self-contained once moved
+            // away from its source folder (issues #13, #21). Resolves against the page's own
+            // directory — included files' image paths were already rebased to it.
+            if (this.layer.Embed)
+            {
+                SelfContainedImageEmbedder.EmbedImages(
+                    dom,
+                    item.SourceFile.DirectoryName!,
+                    this.layer.Verbose ? (message => interactor?.Out?.WriteLine(message)) : null);
+            }
+
             // Remember the page's first level-1 heading; the single-file table of contents
             // uses it as the page label instead of the bare file name.
             item.Title = ExtractFirstHeadingTitle(dom);
@@ -488,6 +499,11 @@ namespace Airudit.MdBook.Core
                 {
                     // local link to a markdown document: point at its generated .html
                     link.Url += ".html";
+                }
+                else if (this.layer.Embed && link.IsImage)
+                {
+                    // will be inlined as a data: URI by SelfContainedImageEmbedder — there is no
+                    // separate asset to copy alongside the output.
                 }
                 else
                 {

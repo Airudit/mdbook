@@ -48,6 +48,13 @@ namespace Airudit.MdBook.Core
         public bool ByLang { get; set; }
 
         /// <summary>
+        /// Whether to inline local images referenced by <c>![alt](path)</c> as <c>data:</c> URIs,
+        /// making the output self-contained (issues #13, #21). Off by default; turned on by
+        /// --Embed and, unless --No-Embed is given, automatically alongside --Single-File.
+        /// </summary>
+        public bool Embed { get; set; }
+
+        /// <summary>
         /// Whether to write each page's HTML in place, next to its source file. On by default;
         /// turned off when an output destination (--single-file or --export) is given without
         /// an explicit --side request. See <see cref="CommandLineMarkdownToHtmlPrepareTask"/>.
