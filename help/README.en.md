@@ -8,6 +8,16 @@ or ship alongside an application.
 This guide is itself built with `mdbook`: the Markdown sources live in `help/`,
 and rendering that folder produces the HTML pages you may be reading now.
 
+```mermaid
+flowchart LR
+    A[Author writes<br/>Markdown] --> B[mdbook<br/>dev / CI]
+    B --> C[Self-contained<br/>HTML book]
+    C --> D[Reader opens it<br/>browser · print · shell]
+```
+
+(That diagram is itself rendered by `mdbook` at build time — see
+[Diagrams](diagrams.en.md).)
+
 What it does
 ----------------------------------------------------------------
 
@@ -37,6 +47,8 @@ Contents
   build time, offline via Docker or through a Kroki server.
 - [Including files](includes.en.md) — composing a page from several Markdown
   parts with `{{include: …}}`.
+- [How mdbook builds a page](internals.en.md) — the transformation steps inside,
+  from Markdown source to a self-contained HTML book.
 - [Use as a C# library](library.en.md) — drive the renderer from your own code.
 
 About file names and language
