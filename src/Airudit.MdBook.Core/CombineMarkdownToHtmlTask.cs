@@ -201,6 +201,10 @@ public class CombineMarkdownToHtmlTask : ITask
             {
                 return WebUtility.HtmlEncode(layer.Copyright ?? string.Empty);
             }
+            else if (HighlightStylesheet.IsPlaceholder(key))
+            {
+                return HighlightStylesheet.Render(key, layer.Highlight);
+            }
             else
             {
                 return string.Empty;

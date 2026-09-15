@@ -60,13 +60,24 @@ namespace Airudit.MdBook.Core
             }
 
             // prepare pipeline
-            this.layer.Pipeline = new MarkdownPipelineBuilder()
+            var pipelineBuilder = new MarkdownPipelineBuilder()
                 .UseAutoIdentifiers()
                 .UseAutoLinks()
                 .UsePipeTables()
                 .UseEmphasisExtras()
-                .UseTaskLists()
-                .Build();
+                .UseTaskLists();
+
+            // Build-time syntax highlighting: a rendering-only extension, added only when enabled
+            // so it stays a discrete stage (issue #25).
+            if (this.layer.Highlight)
+            {
+                // Cap ColorCode's regexes before it ever compiles them, so a malformed code block
+                // aborts and falls back to plain instead of backtracking for minutes (issue #25).
+                SyntaxHighlightingExtension.InstallDefaultRegexTimeout();
+                pipelineBuilder.Extensions.Add(new SyntaxHighlightingExtension());
+            }
+
+            this.layer.Pipeline = pipelineBuilder.Build();
 
             // prepare template
             const string builtinPrefix = "builtin:";
@@ -280,6 +291,10 @@ namespace Airudit.MdBook.Core
                 else if ("Copyright".Equals(key, StringComparison.Ordinal))
                 {
                     return WebUtility.HtmlEncode(this.layer.Copyright ?? string.Empty);
+                }
+                else if (HighlightStylesheet.IsPlaceholder(key))
+                {
+                    return HighlightStylesheet.Render(key, this.layer.Highlight);
                 }
                 else
                 {

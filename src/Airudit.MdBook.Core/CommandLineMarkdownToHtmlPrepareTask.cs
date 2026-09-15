@@ -35,6 +35,7 @@ namespace Airudit.MdBook.Core
             var byLang = false;
             var embedExplicit = false;
             var noEmbed = false;
+            var noHighlight = false;
             var errors = new List<string>();
             var inputs = new List<FileSystemInfo>();
             using var args = new ParseArgs(interactor.Arguments);
@@ -68,6 +69,15 @@ namespace Airudit.MdBook.Core
                 else if (args.Is(arg = "--no-embed"))
                 {
                     noEmbed = true;
+                }
+                else if (args.Is(arg = "--highlight"))
+                {
+                    // On by default; accepted so an explicit request is not an "unknown argument".
+                    noHighlight = false;
+                }
+                else if (args.Is(arg = "--no-highlight"))
+                {
+                    noHighlight = true;
                 }
                 else if (args.Is(arg = "--export"))
                 {
@@ -208,6 +218,7 @@ namespace Airudit.MdBook.Core
                 interactor.Out.WriteLine("    --Embed               Inline local images as data: URIs so the output is self-");
                 interactor.Out.WriteLine("                          contained. On automatically with --Single-File.");
                 interactor.Out.WriteLine("    --No-Embed            Keep images as external references even with --Single-File.");
+                interactor.Out.WriteLine("    --No-Highlight        Do not syntax-highlight fenced code blocks (on by default).");
                 interactor.Out.WriteLine("");
                 interactor.Out.WriteLine("Output & info: ");
                 interactor.Out.WriteLine("    --Verbose, -v         Print a per-page trace while rendering (quiet by default)");
@@ -249,6 +260,9 @@ namespace Airudit.MdBook.Core
             // produced — an external <img src> defeats the point of one self-contained file.
             // --No-Embed opts out of both. See issues #13 and #21.
             layer.Embed = !noEmbed && (embedExplicit || layer.SingleFile != null);
+
+            // Syntax highlighting is on by default; --No-Highlight opts out. See issue #25.
+            layer.Highlight = !noHighlight;
 
             // verify exports
             for (int e = 0; e < layer.Exports.Count; e++)

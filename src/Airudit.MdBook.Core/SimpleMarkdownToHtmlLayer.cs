@@ -55,6 +55,13 @@ namespace Airudit.MdBook.Core
         public bool Embed { get; set; }
 
         /// <summary>
+        /// Whether to syntax-highlight fenced code blocks whose language ColorCode recognises,
+        /// emitting classed token spans coloured by the template's <c>&lt;style&gt;</c> (issue #25).
+        /// On by default; turned off by --No-Highlight. Unknown/absent languages are unaffected.
+        /// </summary>
+        public bool Highlight { get; set; } = true;
+
+        /// <summary>
         /// Whether to write each page's HTML in place, next to its source file. On by default;
         /// turned off when an output destination (--single-file or --export) is given without
         /// an explicit --side request. See <see cref="CommandLineMarkdownToHtmlPrepareTask"/>.

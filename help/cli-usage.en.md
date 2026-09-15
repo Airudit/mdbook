@@ -82,6 +82,12 @@ Option names are case-insensitive (`--export` and `--Export` are equal).
   references, and a non-image file you link to is still copied/exported as before.
 - `--No-Embed` — opt out of image inlining, keeping every image as an external
   reference even under `--Single-File`.
+- `--Highlight` / `--No-Highlight` — syntax-highlight fenced code blocks whose
+  language is recognized, coloring them with classes from the template (see
+  `{{{HighlightStyles}}}` in [Templates](templates.en.md)). **On by default**;
+  pass `--No-Highlight` to turn it off. A block with no language, or an
+  unrecognized one, is left as plain code either way. No JavaScript, no network —
+  the colors are plain CSS, so they print and read in a terminal browser.
 - `--Verbose`, `-v` — print a per-page trace (`Processing markdown file "…"`) while
   rendering. A run is quiet by default; the in-place writes performed by `--Side`
   (or a default no-destination run) are reported either way.
@@ -110,6 +116,8 @@ Environment variables
   item followed by a thematic break. The fix is **on by default**; set the variable to
   `0`, `false`, `off`, or `no` to opt out and get plain CommonMark parsing. Any other
   value (or leaving it unset) keeps the fix on.
+- `MDBOOK_HIGHLIGHT_TIMEOUT_MS` — the per-block cap for syntax highlighting, in
+  milliseconds (default `1000`). See *Troubleshooting* below; you rarely need to touch it.
 
 Examples
 ----------------------------------------------------------------
@@ -180,3 +188,22 @@ Ordering
 The order in which inputs are taken, folders are walked, and duplicates are dropped is only
 observable in the combined output, so it is documented with the mode it affects — see
 *Page order* in [Single-file books](single-file.en.md).
+
+Troubleshooting
+----------------------------------------------------------------
+
+You will not normally need this section — it covers one rough edge of syntax highlighting.
+
+A run that is unexpectedly slow (seconds where it is usually instant) is almost always a
+**malformed code block** feeding the highlighter. The syntax highlighter tokenizes with
+regular expressions, and certain invalid input — most often JSON fragments with comments,
+truncated structures, or a string that is never closed — can send those expressions into
+pathological backtracking. This is a known limitation of the underlying highlighter, not of
+your document.
+
+`mdbook` guards against it: each block is capped (1 second by default), and a block that hits
+the cap is simply rendered **uncolored** instead of stalling the run. So the worst case is a
+few uncolored blocks and a second or two of delay — never a hang. If it still bothers you:
+
+- Lower the cap with `MDBOOK_HIGHLIGHT_TIMEOUT_MS` (e.g. `300`) so a bad block falls back sooner.
+- Or turn highlighting off entirely for that run with `--No-Highlight`.

@@ -52,6 +52,13 @@ Known variables:
 - `{{{Info}}}` — an automatically generated notice stating the file was produced
   by the tool and that manual edits will be lost on the next run.
 - `{{{Copyright}}}` — the string passed with `--Copyright`. HTML-escaped.
+- `{{{HighlightStyles}}}` / `{{{HighlightStyles.dark}}}` — the syntax-highlighting CSS
+  for fenced code blocks, generated at build time. Put one inside your template's
+  `<style>`: `{{{HighlightStyles}}}` for a light template, `{{{HighlightStyles.dark}}}`
+  for a dark one — the token you choose is how the template declares its theme. A
+  template without either placeholder simply renders code uncolored; the value is empty
+  when `--No-Highlight` is used. See [Command-line usage](cli-usage.en.md) for `--Embed`,
+  `--No-Highlight` and the highlighting details.
 
 Any unknown `{{{…}}}` placeholder is replaced with an empty string.
 

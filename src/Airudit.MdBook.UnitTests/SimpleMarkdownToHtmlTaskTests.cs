@@ -406,8 +406,50 @@ public class SimpleMarkdownToHtmlTaskTests
         }
     }
 
+    // --- issue #25: build-time syntax highlighting of fenced code blocks ---
+
+    [Fact]
+    public void Fenced_code_with_a_known_language_is_highlighted()
+    {
+        var html = RenderToHtml("doc.md", "```csharp\npublic int X;\n```");
+        Assert.Contains("<span class=\"keyword\">public</span>", html);
+        Assert.Contains("class=\"language-csharp\"", html);
+    }
+
+    [Fact]
+    public void A_language_alias_is_resolved()
+    {
+        // "cs" is a Markdown fence alias for ColorCode's "csharp".
+        var html = RenderToHtml("doc.md", "```cs\npublic int X;\n```");
+        Assert.Contains("<span class=\"keyword\">public</span>", html);
+    }
+
+    [Fact]
+    public void A_plain_fenced_block_is_not_highlighted()
+    {
+        var html = RenderToHtml("doc.md", "```\npublic int X;\n```");
+        Assert.DoesNotContain("class=\"keyword\"", html);
+        Assert.Contains("public int X;", html);
+    }
+
+    [Fact]
+    public void An_unknown_language_is_left_as_plain_code()
+    {
+        var html = RenderToHtml("doc.md", "```nosuchlang\npublic int X;\n```");
+        Assert.DoesNotContain("class=\"keyword\"", html);
+        Assert.Contains("class=\"language-nosuchlang\"", html);
+    }
+
+    [Fact]
+    public void Highlighting_can_be_disabled()
+    {
+        var html = RenderToHtml("doc.md", "```csharp\npublic int X;\n```", highlight: false);
+        Assert.DoesNotContain("class=\"keyword\"", html);
+        Assert.Contains("public int X;", html);
+    }
+
     // Renders one Markdown file through the real task and returns the output HTML.
-    private static string RenderToHtml(string fileName, string markdown, string? copyright = null)
+    private static string RenderToHtml(string fileName, string markdown, string? copyright = null, bool highlight = true)
     {
         var tempDir = Path.Combine(Path.GetTempPath(), "mdbook-tests-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(tempDir);
@@ -423,6 +465,7 @@ public class SimpleMarkdownToHtmlTaskTests
             layer.AddFile(new FileInfo(sourcePath), true);
             layer.TemplateFilePath = templatePath;
             layer.Copyright = copyright;
+            layer.Highlight = highlight;
 
             var context = new PackageContext();
             context.AddLayer(layer);
