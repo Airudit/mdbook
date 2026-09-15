@@ -62,6 +62,30 @@ namespace Airudit.MdBook.Core
         public bool Highlight { get; set; } = true;
 
         /// <summary>
+        /// Which provider renders diagram fences (mermaid, plantuml, …) to inline SVG. None by default
+        /// (diagram fences stay plain and a one-shot warning is shown); set by --Diagrams. See issue #5.
+        /// </summary>
+        public DiagramProviderKind Diagrams { get; set; } = DiagramProviderKind.None;
+
+        /// <summary>
+        /// Base URL of the Kroki server used when <see cref="Diagrams"/> is
+        /// <see cref="DiagramProviderKind.Kroki"/>; set by --KrokiUrl. Ignored otherwise.
+        /// </summary>
+        public string? KrokiUrl { get; set; }
+
+        /// <summary>
+        /// The colour scheme the active template declares (via a <c>&lt;!-- mdbook:color-scheme … --&gt;</c>
+        /// marker), used to pick a matching diagram theme. Light unless the template says otherwise.
+        /// </summary>
+        public DiagramColorScheme ColorScheme { get; set; } = DiagramColorScheme.Light;
+
+        /// <summary>
+        /// Collects diagram fences left unrendered during a run, so a single setup/failure warning can
+        /// be emitted at the end. Populated by the diagram renderer; read by the render task.
+        /// </summary>
+        public DiagramWarningSink DiagramWarnings { get; } = new DiagramWarningSink();
+
+        /// <summary>
         /// Whether to write each page's HTML in place, next to its source file. On by default;
         /// turned off when an output destination (--single-file or --export) is given without
         /// an explicit --side request. See <see cref="CommandLineMarkdownToHtmlPrepareTask"/>.

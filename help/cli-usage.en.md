@@ -88,9 +88,18 @@ Option names are case-insensitive (`--export` and `--Export` are equal).
   pass `--No-Highlight` to turn it off. A block with no language, or an
   unrecognized one, is left as plain code either way. No JavaScript, no network —
   the colors are plain CSS, so they print and read in a terminal browser.
+- `--Diagrams <none|docker|kroki>` — render diagram fences (`mermaid`, `plantuml`, …) to
+  inline SVG at build time. **Off by default** (`none`): the block stays plain and a hint
+  is shown. `docker` renders locally with one-shot images (offline, private); `kroki` uses
+  a Kroki server (needs `--KrokiUrl`) and covers every Kroki diagram type. See
+  [Diagrams](diagrams.en.md).
+- `--KrokiUrl <url>` — the Kroki base URL for `--Diagrams kroki`, e.g. `https://kroki.io/`
+  (with the trailing slash). A **public** server receives your diagram source — prefer a
+  local renderer or a self-hosted Kroki for confidential content.
 - `--Verbose`, `-v` — print a per-page trace (`Processing markdown file "…"`) while
   rendering. A run is quiet by default; the in-place writes performed by `--Side`
-  (or a default no-destination run) are reported either way.
+  (or a default no-destination run) are reported either way. For diagrams, `--Verbose`
+  also explains why any fence was left unrendered (a server error, Docker not installed, …).
 - `--Version` — print the tool version (the full semantic version, e.g.
   `0.4.0+<commit>`) and exit.
 
@@ -118,6 +127,10 @@ Environment variables
   value (or leaving it unset) keeps the fix on.
 - `MDBOOK_HIGHLIGHT_TIMEOUT_MS` — the per-block cap for syntax highlighting, in
   milliseconds (default `1000`). See *Troubleshooting* below; you rarely need to touch it.
+- `MDBOOK_DIAGRAMS` / `MDBOOK_KROKI_URL` — defaults for `--Diagrams` and `--KrokiUrl` when
+  the flags are not given; the flags always take precedence. See [Diagrams](diagrams.en.md).
+- `MDBOOK_DIAGRAM_TIMEOUT_MS` — the per-diagram render cap, in milliseconds (default
+  `120000`); a first `docker` render may pull its image, so it is generous.
 
 Examples
 ----------------------------------------------------------------

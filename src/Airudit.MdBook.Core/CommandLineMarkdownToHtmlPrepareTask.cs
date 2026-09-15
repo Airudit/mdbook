@@ -36,6 +36,8 @@ namespace Airudit.MdBook.Core
             var embedExplicit = false;
             var noEmbed = false;
             var noHighlight = false;
+            string diagramsArg = null;
+            string krokiUrlArg = null;
             var errors = new List<string>();
             var inputs = new List<FileSystemInfo>();
             using var args = new ParseArgs(interactor.Arguments);
@@ -78,6 +80,30 @@ namespace Airudit.MdBook.Core
                 else if (args.Is(arg = "--no-highlight"))
                 {
                     noHighlight = true;
+                }
+                else if (args.Is(arg = "--diagrams"))
+                {
+                    if (args.Has(1))
+                    {
+                        args.MoveNext();
+                        diagramsArg = args.Current;
+                    }
+                    else
+                    {
+                        errors.Add("Argument " + arg + " must be followed by a provider (none, docker or kroki). ");
+                    }
+                }
+                else if (args.Is(arg = "--krokiurl"))
+                {
+                    if (args.Has(1))
+                    {
+                        args.MoveNext();
+                        krokiUrlArg = args.Current;
+                    }
+                    else
+                    {
+                        errors.Add("Argument " + arg + " must be followed by a URL. ");
+                    }
                 }
                 else if (args.Is(arg = "--export"))
                 {
@@ -172,6 +198,51 @@ namespace Airudit.MdBook.Core
                 }
             }
 
+            // Diagram provider: fall back to MDBOOK_DIAGRAMS / MDBOOK_KROKI_URL when the flags are
+            // absent (--Diagrams / --KrokiUrl always win). Empty/whitespace values are treated as unset.
+            if (diagramsArg == null)
+            {
+                var envDiagrams = Environment.GetEnvironmentVariable("MDBOOK_DIAGRAMS");
+                if (!string.IsNullOrWhiteSpace(envDiagrams))
+                {
+                    diagramsArg = envDiagrams;
+                }
+            }
+
+            if (krokiUrlArg == null)
+            {
+                var envKroki = Environment.GetEnvironmentVariable("MDBOOK_KROKI_URL");
+                if (!string.IsNullOrWhiteSpace(envKroki))
+                {
+                    krokiUrlArg = envKroki;
+                }
+            }
+
+            if (diagramsArg != null)
+            {
+                switch (diagramsArg.Trim().ToLowerInvariant())
+                {
+                    case "none":
+                        layer.Diagrams = DiagramProviderKind.None;
+                        break;
+                    case "docker":
+                        layer.Diagrams = DiagramProviderKind.Docker;
+                        break;
+                    case "kroki":
+                        layer.Diagrams = DiagramProviderKind.Kroki;
+                        break;
+                    default:
+                        errors.Add("Unknown --Diagrams provider \"" + diagramsArg + "\". Use none, docker or kroki. ");
+                        break;
+                }
+            }
+
+            layer.KrokiUrl = krokiUrlArg;
+            if (layer.Diagrams == DiagramProviderKind.Kroki && string.IsNullOrWhiteSpace(layer.KrokiUrl))
+            {
+                errors.Add("--Diagrams kroki requires --KrokiUrl <url> (e.g. https://kroki.io/). ");
+            }
+
             if (isVersion)
             {
                 // Full informational version from the entry assembly (e.g. "0.4.0+<sha>"), set by MinVer.
@@ -220,6 +291,15 @@ namespace Airudit.MdBook.Core
                 interactor.Out.WriteLine("    --No-Embed            Keep images as external references even with --Single-File.");
                 interactor.Out.WriteLine("    --No-Highlight        Do not syntax-highlight fenced code blocks (on by default).");
                 interactor.Out.WriteLine("");
+                interactor.Out.WriteLine("Diagrams (mermaid, plantuml, …; pre-rendered to inline SVG): ");
+                interactor.Out.WriteLine("    --Diagrams <none|docker|kroki>");
+                interactor.Out.WriteLine("                          How to render diagram fences. Default none: they stay plain");
+                interactor.Out.WriteLine("                          and a setup hint is shown.");
+                interactor.Out.WriteLine("                          docker: one-shot local images (mermaid, plantuml) — offline.");
+                interactor.Out.WriteLine("                          kroki:  a Kroki server (needs --KrokiUrl) — all diagram types.");
+                interactor.Out.WriteLine("    --KrokiUrl <url>      Base URL of the Kroki server, e.g. https://kroki.io/ (a public");
+                interactor.Out.WriteLine("                          server uploads your diagram source — see the diagrams help page).");
+                interactor.Out.WriteLine("");
                 interactor.Out.WriteLine("Output & info: ");
                 interactor.Out.WriteLine("    --Verbose, -v         Print a per-page trace while rendering (quiet by default)");
                 interactor.Out.WriteLine("    --Version             Print the tool version and exit");
@@ -233,6 +313,11 @@ namespace Airudit.MdBook.Core
                 interactor.Out.WriteLine("                          when --Template is not given. --Template overrides it.");
                 interactor.Out.WriteLine("    MDBOOK_COPYRIGHT      Default copyright notice used when --Copyright is not");
                 interactor.Out.WriteLine("                          given. --Copyright overrides it.");
+                interactor.Out.WriteLine("    MDBOOK_DIAGRAMS       Default diagram provider (none/docker/kroki) when --Diagrams");
+                interactor.Out.WriteLine("                          is not given. --Diagrams overrides it.");
+                interactor.Out.WriteLine("    MDBOOK_KROKI_URL      Default Kroki base URL when --KrokiUrl is not given.");
+                interactor.Out.WriteLine("    MDBOOK_DIAGRAM_TIMEOUT_MS");
+                interactor.Out.WriteLine("                          Per-diagram render budget in ms (default 120000).");
                 interactor.Out.WriteLine("    MDBOOK_NUMBERED_SETEXT_FIX");
                 interactor.Out.WriteLine("                          Set to 0/false/off/no to disable the numbered setext");
                 interactor.Out.WriteLine("                          heading fix (on by default).");

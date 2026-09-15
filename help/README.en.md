@@ -33,6 +33,8 @@ Contents
   reader, terminal, or as a file you can edit.
 - [Templates and placeholders](templates.en.md) — the built-in templates and the
   `{{{…}}}` variables they fill.
+- [Diagrams](diagrams.en.md) — render `mermaid` / `plantuml` fences to inline SVG at
+  build time, offline via Docker or through a Kroki server.
 - [Including files](includes.en.md) — composing a page from several Markdown
   parts with `{{include: …}}`.
 - [Use as a C# library](library.en.md) — drive the renderer from your own code.

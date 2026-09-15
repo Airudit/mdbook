@@ -59,27 +59,8 @@ namespace Airudit.MdBook.Core
                 context.AddLayer(layer);
             }
 
-            // prepare pipeline
-            var pipelineBuilder = new MarkdownPipelineBuilder()
-                .UseAutoIdentifiers()
-                .UseAutoLinks()
-                .UsePipeTables()
-                .UseEmphasisExtras()
-                .UseTaskLists();
-
-            // Build-time syntax highlighting: a rendering-only extension, added only when enabled
-            // so it stays a discrete stage (issue #25).
-            if (this.layer.Highlight)
-            {
-                // Cap ColorCode's regexes before it ever compiles them, so a malformed code block
-                // aborts and falls back to plain instead of backtracking for minutes (issue #25).
-                SyntaxHighlightingExtension.InstallDefaultRegexTimeout();
-                pipelineBuilder.Extensions.Add(new SyntaxHighlightingExtension());
-            }
-
-            this.layer.Pipeline = pipelineBuilder.Build();
-
-            // prepare template
+            // prepare template first: the diagram renderer needs the template's declared colour
+            // scheme (below) before the pipeline is built, to pick a matching diagram theme (issue #5).
             const string builtinPrefix = "builtin:";
             var myAssembly = typeof(SimpleMarkdownToHtmlTask).Assembly;
             if (this.layer.TemplateFilePath != null && this.layer.TemplateFilePath.StartsWith(builtinPrefix, StringComparison.InvariantCulture))
@@ -100,6 +81,39 @@ namespace Airudit.MdBook.Core
                 var path = "Airudit.MdBook.Core.res.default.light.html";
                 this.layer.Template = this.ReadTemplateFromAssembly(myAssembly, path);
             }
+
+            // The template may declare its colour scheme (light/dark); it drives the diagram theme.
+            this.layer.ColorScheme = TemplateColorScheme.Resolve(this.layer.Template);
+
+            // prepare pipeline
+            var pipelineBuilder = new MarkdownPipelineBuilder()
+                .UseAutoIdentifiers()
+                .UseAutoLinks()
+                .UsePipeTables()
+                .UseEmphasisExtras()
+                .UseTaskLists();
+
+            // Build-time syntax highlighting: a rendering-only extension, added only when enabled
+            // so it stays a discrete stage (issue #25).
+            if (this.layer.Highlight)
+            {
+                // Cap ColorCode's regexes before it ever compiles them, so a malformed code block
+                // aborts and falls back to plain instead of backtracking for minutes (issue #25).
+                SyntaxHighlightingExtension.InstallDefaultRegexTimeout();
+                pipelineBuilder.Extensions.Add(new SyntaxHighlightingExtension());
+            }
+
+            // Build-time diagram rendering (issue #5). Added after the highlighter so it decorates
+            // (and runs before) it: diagram fences become inline SVG, every other block still
+            // highlights. Always installed — with the provider off it renders nothing but still
+            // detects diagram fences so the run's setup warning can be shown. Under --verbose, the
+            // provider explains any skipped render.
+            var diagramInteractor = context.GetSingleLayer<CommandLineLayer>();
+            Action<string>? diagramLog = this.layer.Verbose ? (message => diagramInteractor?.Out?.WriteLine(message)) : null;
+            var diagramProvider = DiagramProviderFactory.Create(this.layer.Diagrams, this.layer.KrokiUrl, diagramLog);
+            pipelineBuilder.Extensions.Add(new DiagramRenderingExtension(diagramProvider, this.layer.ColorScheme, this.layer.DiagramWarnings));
+
+            this.layer.Pipeline = pipelineBuilder.Build();
         }
 
         public void Verify(PackageContext context)
@@ -122,6 +136,39 @@ namespace Airudit.MdBook.Core
             foreach (var item in this.layer.Items.ToArray()) // we need to change the collection while enumerating it
             {
                 this.ProcessFileMarkdown(context, item);
+            }
+
+            this.EmitDiagramWarnings(context);
+        }
+
+        // Reports diagram fences left unrendered during the run, once (issue #5): a setup hint when no
+        // provider is configured, or a failure note when the configured renderer could not produce them.
+        private void EmitDiagramWarnings(PackageContext context)
+        {
+            if (!this.layer.DiagramWarnings.Any)
+            {
+                return;
+            }
+
+            var interactor = context.GetSingleLayer<CommandLineLayer>();
+            var errorOut = interactor?.ErrorOut;
+            if (errorOut == null)
+            {
+                return;
+            }
+
+            var tags = string.Join(", ", this.layer.DiagramWarnings.SkippedTags.OrderBy(t => t, StringComparer.OrdinalIgnoreCase));
+            if (this.layer.Diagrams == DiagramProviderKind.None)
+            {
+                errorOut.WriteLine("Diagrams not rendered (" + tags + "). Configure a renderer:");
+                errorOut.WriteLine("  - local Docker (offline, private): --Diagrams docker");
+                errorOut.WriteLine("  - public Kroki (uploads your diagram source): --Diagrams kroki --KrokiUrl https://kroki.io/");
+                errorOut.WriteLine("  - self-hosted Kroki and details: see the diagrams help page (help/diagrams).");
+            }
+            else
+            {
+                var provider = this.layer.Diagrams == DiagramProviderKind.Docker ? "docker" : "kroki";
+                errorOut.WriteLine("Diagrams not rendered by the " + provider + " renderer (" + tags + "): the tool is not installed, the server is unreachable, or rendering failed. Left as plain blocks.");
             }
         }
 
