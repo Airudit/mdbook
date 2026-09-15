@@ -62,6 +62,23 @@ Known variables:
 
 Any unknown `{{{…}}}` placeholder is replaced with an empty string.
 
+Declaring light or dark
+----------------------------------------------------------------
+
+A template declares whether it is light or dark with the standard `color-scheme`
+meta tag in its `<head>`:
+
+```html
+<meta name="color-scheme" content="dark">
+```
+
+Use `dark` for a dark template, `light` (or nothing) for a light one. Because this
+is the standard HTML tag, the browser also themes its own form controls and
+scrollbars to match — and `mdbook` reads it to render [diagrams](diagrams.en.md)
+with a matching theme (a diagram's colours are baked into its SVG, so they must
+suit the page). The built-in templates already declare theirs. This is separate
+from the `{{{HighlightStyles}}}` choice above, which themes only fenced code.
+
 A minimal template
 ----------------------------------------------------------------
 
@@ -70,6 +87,7 @@ A minimal template
 <html lang="{{{Lang}}}">
 <head>
   <meta charset="utf-8">
+  <meta name="color-scheme" content="light">
   <title>{{{PageTitle}}}</title>
   <style>/* your inline styles here */</style>
 </head>
