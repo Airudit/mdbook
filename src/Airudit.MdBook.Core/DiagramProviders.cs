@@ -9,11 +9,13 @@ namespace Airudit.MdBook.Core
     using System.Net.Http;
     using System.Runtime.InteropServices;
     using System.Text;
+    using System.Threading;
+    using System.Threading.Tasks;
 
     /// <summary>
     /// Renders one diagram's source to an SVG string. Implementations are best-effort: any failure
-    /// (tool absent, non-zero exit, timeout, HTTP error) returns <c>false</c> so the caller falls
-    /// back to a plain code block. A render must never throw or stall (issue #5).
+    /// (tool absent, non-zero exit, timeout, HTTP error) returns <c>null</c> so the caller falls back
+    /// to a plain code block. A render must never throw or stall (issue #5).
     /// </summary>
     public interface IDiagramProvider
     {
@@ -21,10 +23,11 @@ namespace Airudit.MdBook.Core
         bool CanRender(string diagramTag);
 
         /// <summary>
-        /// Renders <paramref name="source"/> for <paramref name="diagramTag"/> to SVG. Returns false
-        /// (with <paramref name="svg"/> empty) on any failure.
+        /// Renders <paramref name="source"/> for <paramref name="diagramTag"/> to SVG, or returns null
+        /// on any failure. Called from the async pre-render pass — never from inside Markdig's
+        /// synchronous renderer.
         /// </summary>
-        bool TryRenderSvg(string diagramTag, string source, DiagramColorScheme scheme, out string svg);
+        Task<string?> RenderSvgAsync(string diagramTag, string source, DiagramColorScheme scheme, CancellationToken cancellationToken);
     }
 
     /// <summary>The provider used when diagram rendering is off: renders nothing.</summary>
@@ -35,10 +38,9 @@ namespace Airudit.MdBook.Core
             return false;
         }
 
-        public bool TryRenderSvg(string diagramTag, string source, DiagramColorScheme scheme, out string svg)
+        public Task<string?> RenderSvgAsync(string diagramTag, string source, DiagramColorScheme scheme, CancellationToken cancellationToken)
         {
-            svg = string.Empty;
-            return false;
+            return Task.FromResult<string?>(null);
         }
     }
 
@@ -120,27 +122,25 @@ namespace Airudit.MdBook.Core
             return Find(diagramTag) != null;
         }
 
-        public bool TryRenderSvg(string diagramTag, string source, DiagramColorScheme scheme, out string svg)
+        public async Task<string?> RenderSvgAsync(string diagramTag, string source, DiagramColorScheme scheme, CancellationToken cancellationToken)
         {
-            svg = string.Empty;
             var renderer = Find(diagramTag);
             if (renderer == null)
             {
-                return false;
+                return null;
             }
 
             try
             {
                 return renderer.Io == DockerIo.FileToFile
-                    ? this.RunFileToFile(renderer, source, scheme, out svg)
-                    : this.RunPipeToStdout(renderer, source, scheme, out svg);
+                    ? await this.RunFileToFileAsync(renderer, source, scheme, cancellationToken).ConfigureAwait(false)
+                    : await this.RunPipeToStdoutAsync(renderer, source, scheme, cancellationToken).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
                 // Docker missing (Win32Exception), I/O error, etc. — best-effort, fall back to plain.
                 this.log?.Invoke("Diagram \"" + diagramTag + "\" via Docker (" + renderer.Image + "): " + ex.GetType().Name + ": " + ex.Message);
-                svg = string.Empty;
-                return false;
+                return null;
             }
         }
 
@@ -162,16 +162,15 @@ namespace Airudit.MdBook.Core
             return null;
         }
 
-        private bool RunFileToFile(DockerRenderer renderer, string source, DiagramColorScheme scheme, out string svg)
+        private async Task<string?> RunFileToFileAsync(DockerRenderer renderer, string source, DiagramColorScheme scheme, CancellationToken cancellationToken)
         {
-            svg = string.Empty;
             var work = new DirectoryInfo(Path.Combine(Path.GetTempPath(), "mdbook-diagram-" + Guid.NewGuid().ToString("N")));
             work.Create();
             try
             {
                 var inputFile = Path.Combine(work.FullName, "input." + renderer.InputExtension);
                 var outputFile = Path.Combine(work.FullName, "output.svg");
-                File.WriteAllText(inputFile, source, new UTF8Encoding(false));
+                await File.WriteAllTextAsync(inputFile, source, new UTF8Encoding(false), cancellationToken).ConfigureAwait(false);
 
                 var args = new List<string> { "run", "--rm" };
                 var user = CurrentUserSpec();
@@ -186,31 +185,32 @@ namespace Airudit.MdBook.Core
                 args.Add(renderer.Image);
                 args.AddRange(renderer.BuildArgs(scheme, "/data/input." + renderer.InputExtension, "/data/output.svg"));
 
-                if (!this.RunDocker(args, stdin: null, out _, out var stderr, out var exitCode))
+                var result = await this.RunDockerAsync(args, stdin: null, cancellationToken).ConfigureAwait(false);
+                if (!result.Completed)
                 {
-                    return false; // start failure / timeout already logged
+                    return null; // start failure / timeout already logged
                 }
 
-                if (exitCode != 0)
+                if (result.ExitCode != 0)
                 {
-                    this.log?.Invoke("Diagram via Docker (" + renderer.Image + ") exited " + exitCode + ". " + FirstLine(stderr));
-                    return false;
+                    this.log?.Invoke("Diagram via Docker (" + renderer.Image + ") exited " + result.ExitCode + ". " + DiagramText.FirstLine(result.Stderr));
+                    return null;
                 }
 
                 if (!File.Exists(outputFile))
                 {
-                    this.log?.Invoke("Diagram via Docker (" + renderer.Image + "): no output produced. " + FirstLine(stderr));
-                    return false;
+                    this.log?.Invoke("Diagram via Docker (" + renderer.Image + "): no output produced. " + DiagramText.FirstLine(result.Stderr));
+                    return null;
                 }
 
-                svg = File.ReadAllText(outputFile, Encoding.UTF8);
+                var svg = await File.ReadAllTextAsync(outputFile, Encoding.UTF8, cancellationToken).ConfigureAwait(false);
                 if (svg.IndexOf("<svg", StringComparison.OrdinalIgnoreCase) < 0)
                 {
                     this.log?.Invoke("Diagram via Docker (" + renderer.Image + "): output was not SVG. ");
-                    return false;
+                    return null;
                 }
 
-                return true;
+                return svg;
             }
             finally
             {
@@ -224,42 +224,38 @@ namespace Airudit.MdBook.Core
             }
         }
 
-        private bool RunPipeToStdout(DockerRenderer renderer, string source, DiagramColorScheme scheme, out string svg)
+        private async Task<string?> RunPipeToStdoutAsync(DockerRenderer renderer, string source, DiagramColorScheme scheme, CancellationToken cancellationToken)
         {
-            svg = string.Empty;
             var args = new List<string> { "run", "--rm", "-i", renderer.Image };
             args.AddRange(renderer.BuildArgs(scheme, string.Empty, string.Empty));
 
-            if (!this.RunDocker(args, stdin: source, out var stdout, out var stderr, out var exitCode))
+            var result = await this.RunDockerAsync(args, stdin: source, cancellationToken).ConfigureAwait(false);
+            if (!result.Completed)
             {
-                return false; // start failure / timeout already logged
+                return null; // start failure / timeout already logged
             }
 
-            if (exitCode != 0)
+            if (result.ExitCode != 0)
             {
-                this.log?.Invoke("Diagram via Docker (" + renderer.Image + ") exited " + exitCode + ". " + FirstLine(stderr));
-                return false;
+                this.log?.Invoke("Diagram via Docker (" + renderer.Image + ") exited " + result.ExitCode + ". " + DiagramText.FirstLine(result.Stderr));
+                return null;
             }
 
-            svg = stdout;
+            var svg = result.Stdout;
             if (svg.IndexOf("<svg", StringComparison.OrdinalIgnoreCase) < 0)
             {
-                this.log?.Invoke("Diagram via Docker (" + renderer.Image + "): output was not SVG. " + FirstLine(stderr));
-                return false;
+                this.log?.Invoke("Diagram via Docker (" + renderer.Image + "): output was not SVG. " + DiagramText.FirstLine(result.Stderr));
+                return null;
             }
 
-            return true;
+            return svg;
         }
 
-        // Runs a docker command, optionally feeding stdin, capturing stdout and stderr, bounded by the
-        // diagram timeout. Returns false (logging why) when the process could not be started or timed
-        // out; a non-zero exit still returns true, leaving the caller to interpret <paramref name="exitCode"/>.
-        private bool RunDocker(IReadOnlyList<string> args, string? stdin, out string stdout, out string stderr, out int exitCode)
+        // Runs a docker command asynchronously, optionally feeding stdin, capturing stdout and stderr,
+        // bounded by the diagram timeout via a linked cancellation. Logs (and reports Completed=false)
+        // when the process could not be started or timed out; a non-zero exit still reports Completed.
+        private async Task<DockerResult> RunDockerAsync(IReadOnlyList<string> args, string? stdin, CancellationToken cancellationToken)
         {
-            stdout = string.Empty;
-            stderr = string.Empty;
-            exitCode = -1;
-
             var info = new ProcessStartInfo("docker")
             {
                 RedirectStandardOutput = true,
@@ -277,18 +273,25 @@ namespace Airudit.MdBook.Core
             if (process == null)
             {
                 this.log?.Invoke("Docker could not be started (is Docker installed and on PATH?). ");
-                return false;
+                return DockerResult.Failed;
             }
+
+            using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            timeoutCts.CancelAfter(DiagramRuntime.Timeout);
 
             if (stdin != null)
             {
-                process.StandardInput.Write(stdin);
+                await process.StandardInput.WriteAsync(stdin).ConfigureAwait(false);
                 process.StandardInput.Close();
             }
 
-            var output = process.StandardOutput.ReadToEnd();
-            var errors = process.StandardError.ReadToEnd();
-            if (!process.WaitForExit((int)DiagramRuntime.Timeout.TotalMilliseconds))
+            var stdoutTask = process.StandardOutput.ReadToEndAsync();
+            var stderrTask = process.StandardError.ReadToEndAsync();
+            try
+            {
+                await process.WaitForExitAsync(timeoutCts.Token).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
             {
                 try
                 {
@@ -299,33 +302,12 @@ namespace Airudit.MdBook.Core
                 }
 
                 this.log?.Invoke("Docker render timed out after " + (int)DiagramRuntime.Timeout.TotalSeconds + "s. ");
-                return false;
+                return DockerResult.Failed;
             }
 
-            stdout = output;
-            stderr = errors;
-            exitCode = process.ExitCode;
-            return true;
-        }
-
-        // The first non-empty line of a process's stderr, trimmed, for a compact --verbose message.
-        private static string FirstLine(string text)
-        {
-            if (string.IsNullOrWhiteSpace(text))
-            {
-                return string.Empty;
-            }
-
-            foreach (var line in text.Split('\n'))
-            {
-                var trimmed = line.Trim();
-                if (trimmed.Length > 0)
-                {
-                    return trimmed.Length > 200 ? trimmed.Substring(0, 200) : trimmed;
-                }
-            }
-
-            return string.Empty;
+            var stdout = await stdoutTask.ConfigureAwait(false);
+            var stderr = await stderrTask.ConfigureAwait(false);
+            return new DockerResult(true, process.ExitCode, stdout, stderr);
         }
 
         private static string MermaidTheme(DiagramColorScheme scheme)
@@ -334,8 +316,8 @@ namespace Airudit.MdBook.Core
         }
 
         // "uid:gid" on Linux so container-written files are owned by us (not root); null elsewhere,
-        // where -u is unnecessary or unsupported (Docker Desktop). getuid/getgid can't fail, but the
-        // p/invoke is guarded so a non-Linux or restricted host just skips -u.
+        // where -u is unnecessary or unsupported (Docker Desktop). The p/invoke is guarded so a
+        // non-Linux or restricted host just skips -u.
         private static string? CurrentUserSpec()
         {
             if (!RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
@@ -358,6 +340,11 @@ namespace Airudit.MdBook.Core
 
         [DllImport("libc", EntryPoint = "getgid")]
         private static extern uint Getgid();
+
+        private readonly record struct DockerResult(bool Completed, int ExitCode, string Stdout, string Stderr)
+        {
+            public static DockerResult Failed => new DockerResult(false, -1, string.Empty, string.Empty);
+        }
     }
 
     /// <summary>
@@ -368,7 +355,8 @@ namespace Airudit.MdBook.Core
     /// </summary>
     public sealed class KrokiDiagramProvider : IDiagramProvider
     {
-        // Per conventions: one long-lived HttpClient (never per-call) with a bounded timeout.
+        // Per conventions: one long-lived HttpClient (never per-call) with a bounded timeout. A
+        // User-Agent is set because some servers/CDNs reject user-agent-less requests.
         private static readonly HttpClient Http = CreateClient();
 
         // Kroki diagram types this provider will POST. Unknown tags are left to fall back to plain.
@@ -404,12 +392,11 @@ namespace Airudit.MdBook.Core
             return diagramTag != null && Supported.Contains(diagramTag);
         }
 
-        public bool TryRenderSvg(string diagramTag, string source, DiagramColorScheme scheme, out string svg)
+        public async Task<string?> RenderSvgAsync(string diagramTag, string source, DiagramColorScheme scheme, CancellationToken cancellationToken)
         {
-            svg = string.Empty;
             if (!this.CanRender(diagramTag))
             {
-                return false;
+                return null;
             }
 
             try
@@ -420,24 +407,30 @@ namespace Airudit.MdBook.Core
                     Content = new StringContent(body, new UTF8Encoding(false), "text/plain"),
                 };
 
-                using var response = Http.Send(request);
+                using var response = await Http.SendAsync(request, cancellationToken).ConfigureAwait(false);
                 if (!response.IsSuccessStatusCode)
                 {
-                    this.log?.Invoke("Diagram \"" + diagramTag + "\" via Kroki: HTTP " + (int)response.StatusCode + ". ");
-                    return false;
+                    // The body distinguishes a Kroki render error (a diagram problem) from a Cloudflare
+                    // block page (a "<!DOCTYPE html>…" challenge) — surface its first line under --verbose.
+                    var errorBody = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+                    this.log?.Invoke("Diagram \"" + diagramTag + "\" via Kroki: HTTP " + (int)response.StatusCode + ". " + DiagramText.FirstLine(errorBody));
+                    return null;
                 }
 
-                using var stream = response.Content.ReadAsStream();
-                using var reader = new StreamReader(stream, Encoding.UTF8);
-                svg = reader.ReadToEnd();
-                return svg.IndexOf("<svg", StringComparison.OrdinalIgnoreCase) >= 0;
+                var svg = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+                if (svg.IndexOf("<svg", StringComparison.OrdinalIgnoreCase) < 0)
+                {
+                    this.log?.Invoke("Diagram \"" + diagramTag + "\" via Kroki: response was not SVG. ");
+                    return null;
+                }
+
+                return svg;
             }
             catch (Exception ex)
             {
                 // Unreachable, timeout, non-2xx already handled — any error means fall back to plain.
                 this.log?.Invoke("Diagram \"" + diagramTag + "\" via Kroki: " + ex.GetType().Name + ": " + ex.Message);
-                svg = string.Empty;
-                return false;
+                return null;
             }
         }
 
@@ -459,7 +452,33 @@ namespace Airudit.MdBook.Core
         {
             var client = new HttpClient();
             client.Timeout = DiagramRuntime.Timeout;
+            client.DefaultRequestHeaders.TryAddWithoutValidation("User-Agent", "Airudit.MdBook");
             return client;
+        }
+    }
+
+    /// <summary>Small text helper shared by the providers for compact --verbose diagnostics.</summary>
+    internal static class DiagramText
+    {
+        // The first non-empty line of some output (a process's stderr, or an HTTP error body), trimmed
+        // and length-capped, so a --verbose message stays to one readable line.
+        public static string FirstLine(string text)
+        {
+            if (string.IsNullOrWhiteSpace(text))
+            {
+                return string.Empty;
+            }
+
+            foreach (var line in text.Split('\n'))
+            {
+                var trimmed = line.Trim();
+                if (trimmed.Length > 0)
+                {
+                    return trimmed.Length > 200 ? trimmed.Substring(0, 200) : trimmed;
+                }
+            }
+
+            return string.Empty;
         }
     }
 
@@ -469,6 +488,11 @@ namespace Airudit.MdBook.Core
         // Per-diagram render budget (docker run / Kroki POST). Generous by default because a first
         // docker run may pull the image; override with MDBOOK_DIAGRAM_TIMEOUT_MS.
         public static TimeSpan Timeout { get; } = ResolveTimeout();
+
+        // How many diagrams to render concurrently in the pre-render pass. Capped modestly so a
+        // diagram-heavy page does not spawn dozens of docker runs at once; override with
+        // MDBOOK_DIAGRAM_PARALLELISM.
+        public static int MaxParallelism { get; } = ResolveParallelism();
 
         private static TimeSpan ResolveTimeout()
         {
@@ -480,6 +504,17 @@ namespace Airudit.MdBook.Core
             }
 
             return TimeSpan.FromMilliseconds(defaultMs);
+        }
+
+        private static int ResolveParallelism()
+        {
+            var raw = Environment.GetEnvironmentVariable("MDBOOK_DIAGRAM_PARALLELISM");
+            if (int.TryParse(raw, out var n) && n > 0)
+            {
+                return n;
+            }
+
+            return Math.Max(1, Math.Min(Environment.ProcessorCount, 4));
         }
     }
 }

@@ -7,6 +7,8 @@ using System.Globalization;
 using System.Net;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Web;
 
 /// <summary>
@@ -24,11 +26,30 @@ public class CombineMarkdownToHtmlTask : ITask
     {
     }
 
-    public void Visit(PackageContext context)
+    // Combining is synchronous; the async members satisfy ITask and run the sync bodies.
+    public Task VisitAsync(PackageContext context, CancellationToken cancellationToken = default)
+    {
+        this.Visit(context);
+        return Task.CompletedTask;
+    }
+
+    public Task VerifyAsync(PackageContext context, CancellationToken cancellationToken = default)
+    {
+        this.Verify(context);
+        return Task.CompletedTask;
+    }
+
+    public Task RunAsync(PackageContext context, CancellationToken cancellationToken = default)
+    {
+        this.Run(context);
+        return Task.CompletedTask;
+    }
+
+    private void Visit(PackageContext context)
     {
     }
 
-    public void Verify(PackageContext context)
+    private void Verify(PackageContext context)
     {
         if (context == null)
         {
@@ -36,7 +57,7 @@ public class CombineMarkdownToHtmlTask : ITask
         }
     }
 
-    public void Run(PackageContext context)
+    private void Run(PackageContext context)
     {
         if (context == null)
         {

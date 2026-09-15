@@ -6,6 +6,8 @@ namespace Airudit.MdBook.Core
     using System.Collections.Generic;
     using System.IO;
     using System.Linq;
+    using System.Threading;
+    using System.Threading.Tasks;
 
     /// <summary>
     /// Exports the files handled by the <see cref="SimpleMarkdownToHtmlTask"/>.
@@ -23,7 +25,26 @@ namespace Airudit.MdBook.Core
 
         public string Key { get; }
 
-        public void Visit(PackageContext context)
+        // File export is synchronous; the async members satisfy ITask and run the sync bodies.
+        public Task VisitAsync(PackageContext context, CancellationToken cancellationToken = default)
+        {
+            this.Visit(context);
+            return Task.CompletedTask;
+        }
+
+        public Task VerifyAsync(PackageContext context, CancellationToken cancellationToken = default)
+        {
+            this.Verify(context);
+            return Task.CompletedTask;
+        }
+
+        public Task RunAsync(PackageContext context, CancellationToken cancellationToken = default)
+        {
+            this.Run(context);
+            return Task.CompletedTask;
+        }
+
+        private void Visit(PackageContext context)
         {
             if (context == null)
             {
@@ -33,7 +54,7 @@ namespace Airudit.MdBook.Core
             this.layer = context.RequireSingleLayer<SimpleMarkdownToHtmlLayer>();
         }
 
-        public void Verify(PackageContext context)
+        private void Verify(PackageContext context)
         {
             if (context == null)
             {
@@ -41,7 +62,7 @@ namespace Airudit.MdBook.Core
             }
         }
 
-        public void Run(PackageContext context)
+        private void Run(PackageContext context)
         {
             if (context == null)
             {

@@ -2,11 +2,12 @@
 
 using Airudit.MdBook.Core;
 using System.Text;
+using System.Threading.Tasks;
 
 public class UseAsCodeLibrary
 {
     [Fact]
-    public void Demo()
+    public async Task Demo()
     {
         var inputPath = GetLocalFilePath("sample1.md");
         var outputPath = GetLocalFilePath("sample1.md.html");
@@ -17,7 +18,7 @@ public class UseAsCodeLibrary
         }
 
         // demo code from the README file
-        SimpleMdToHtml(inputPath, null);
+        await SimpleMdToHtml(inputPath, null);
 
         // verify
         Assert.True(File.Exists(outputPath));
@@ -36,7 +37,7 @@ public class UseAsCodeLibrary
     /// <summary>
     /// Create an HTML from Markdown path file
     /// </summary>
-    public static void SimpleMdToHtml(string inputFilePath, string? templateFilePath)
+    public static async Task SimpleMdToHtml(string inputFilePath, string? templateFilePath)
     {
         // configure
         var sourceFile = new FileInfo(inputFilePath);
@@ -48,10 +49,10 @@ public class UseAsCodeLibrary
         var context = new PackageContext();
         context.AddLayer(layer);
         var simpleConverterTask = new SimpleMarkdownToHtmlTask();
-        simpleConverterTask.Visit(context);
+        await simpleConverterTask.VisitAsync(context);
 
         // this generates the file
-        simpleConverterTask.Run(context);
+        await simpleConverterTask.RunAsync(context);
     }
 
 }

@@ -81,9 +81,17 @@ namespace Airudit.MdBook.Core
 
         /// <summary>
         /// Collects diagram fences left unrendered during a run, so a single setup/failure warning can
-        /// be emitted at the end. Populated by the diagram renderer; read by the render task.
+        /// be emitted at the end. Populated by the async pre-render pass; read by the render task.
         /// </summary>
         public DiagramWarningSink DiagramWarnings { get; } = new DiagramWarningSink();
+
+        /// <summary>
+        /// Run-wide cache of pre-rendered diagram SVGs, keyed by fence (tag + source); the value is the
+        /// SVG, or null when the diagram could not be rendered. Filled by the async pre-render pass and
+        /// read by the synchronous Markdig renderer (issue #5). Shared across pages so an identical
+        /// diagram is rendered once.
+        /// </summary>
+        public Dictionary<string, string?> DiagramSvgs { get; } = new Dictionary<string, string?>(StringComparer.Ordinal);
 
         /// <summary>
         /// Whether to write each page's HTML in place, next to its source file. On by default;

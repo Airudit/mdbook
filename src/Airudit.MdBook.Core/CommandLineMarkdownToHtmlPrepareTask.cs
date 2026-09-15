@@ -7,6 +7,8 @@ namespace Airudit.MdBook.Core
     using System.IO;
     using System.Linq;
     using System.Reflection;
+    using System.Threading;
+    using System.Threading.Tasks;
 
     /// <summary>
     /// Main command. Command to convert some markdown files to HTML (no packaging involved).
@@ -19,7 +21,26 @@ namespace Airudit.MdBook.Core
         {
         }
 
-        public void Visit(PackageContext context)
+        // Argument parsing is synchronous; the async members satisfy ITask and run the sync bodies.
+        public Task VisitAsync(PackageContext context, CancellationToken cancellationToken = default)
+        {
+            this.Visit(context);
+            return Task.CompletedTask;
+        }
+
+        public Task VerifyAsync(PackageContext context, CancellationToken cancellationToken = default)
+        {
+            this.Verify(context);
+            return Task.CompletedTask;
+        }
+
+        public Task RunAsync(PackageContext context, CancellationToken cancellationToken = default)
+        {
+            this.Run(context);
+            return Task.CompletedTask;
+        }
+
+        private void Visit(PackageContext context)
         {
             var interactor = context.RequireSingleLayer<CommandLineLayer>();
 
@@ -407,11 +428,11 @@ namespace Airudit.MdBook.Core
             }
         }
 
-        public void Verify(PackageContext context)
+        private void Verify(PackageContext context)
         {
         }
 
-        public void Run(PackageContext context)
+        private void Run(PackageContext context)
         {
         }
 

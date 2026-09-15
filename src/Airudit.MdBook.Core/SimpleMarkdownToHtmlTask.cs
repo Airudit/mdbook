@@ -15,6 +15,8 @@ namespace Airudit.MdBook.Core
     using System.Reflection;
     using System.Text;
     using System.Text.RegularExpressions;
+    using System.Threading;
+    using System.Threading.Tasks;
 
     /// <summary>
     /// Converts some markdown files to HTML.
@@ -40,7 +42,20 @@ namespace Airudit.MdBook.Core
         private string? profile;
         private SimpleMarkdownToHtmlLayer? layer;
 
-        public void Visit(PackageContext context)
+        // Visit and Verify are synchronous; only Run does async work (the diagram pre-render pass).
+        public Task VisitAsync(PackageContext context, CancellationToken cancellationToken = default)
+        {
+            this.Visit(context);
+            return Task.CompletedTask;
+        }
+
+        public Task VerifyAsync(PackageContext context, CancellationToken cancellationToken = default)
+        {
+            this.Verify(context);
+            return Task.CompletedTask;
+        }
+
+        private void Visit(PackageContext context)
         {
             if (context == null)
             {
@@ -105,18 +120,14 @@ namespace Airudit.MdBook.Core
 
             // Build-time diagram rendering (issue #5). Added after the highlighter so it decorates
             // (and runs before) it: diagram fences become inline SVG, every other block still
-            // highlights. Always installed — with the provider off it renders nothing but still
-            // detects diagram fences so the run's setup warning can be shown. Under --verbose, the
-            // provider explains any skipped render.
-            var diagramInteractor = context.GetSingleLayer<CommandLineLayer>();
-            Action<string>? diagramLog = this.layer.Verbose ? (message => diagramInteractor?.Out?.WriteLine(message)) : null;
-            var diagramProvider = DiagramProviderFactory.Create(this.layer.Diagrams, this.layer.KrokiUrl, diagramLog);
-            pipelineBuilder.Extensions.Add(new DiagramRenderingExtension(diagramProvider, this.layer.ColorScheme, this.layer.DiagramWarnings));
+            // highlights. Markdig's renderer is synchronous, so the diagrams are pre-rendered
+            // asynchronously in Run; this renderer only looks the results up in the shared cache.
+            pipelineBuilder.Extensions.Add(new DiagramRenderingExtension(this.layer.DiagramSvgs));
 
             this.layer.Pipeline = pipelineBuilder.Build();
         }
 
-        public void Verify(PackageContext context)
+        private void Verify(PackageContext context)
         {
             if (context == null)
             {
@@ -124,7 +135,7 @@ namespace Airudit.MdBook.Core
             }
         }
 
-        public void Run(PackageContext context)
+        public async Task RunAsync(PackageContext context, CancellationToken cancellationToken = default)
         {
             if (context == null)
             {
@@ -133,9 +144,15 @@ namespace Airudit.MdBook.Core
 
             this.RemoveIncludedPartials();
 
+            // The diagram provider and its --verbose logger live for the whole run; the pre-render
+            // pass (below, per page) fills the shared SVG cache the Markdig renderer reads.
+            var interactor = context.GetSingleLayer<CommandLineLayer>();
+            Action<string>? diagramLog = this.layer.Verbose ? (message => interactor?.Out?.WriteLine(message)) : null;
+            var diagramProvider = DiagramProviderFactory.Create(this.layer.Diagrams, this.layer.KrokiUrl, diagramLog);
+
             foreach (var item in this.layer.Items.ToArray()) // we need to change the collection while enumerating it
             {
-                this.ProcessFileMarkdown(context, item);
+                await this.ProcessFileMarkdownAsync(context, item, diagramProvider, diagramLog, cancellationToken).ConfigureAwait(false);
             }
 
             this.EmitDiagramWarnings(context);
@@ -236,7 +253,7 @@ namespace Airudit.MdBook.Core
             visiting.Remove(file.FullName);
         }
 
-        private void ProcessFileMarkdown(PackageContext context, SimpleMarkdownToHtmlLayerItem item)
+        private async Task ProcessFileMarkdownAsync(PackageContext context, SimpleMarkdownToHtmlLayerItem item, IDiagramProvider diagramProvider, Action<string>? diagramLog, CancellationToken cancellationToken)
         {
             var interactor = context.GetSingleLayer<CommandLineLayer>();
             if (this.layer.Verbose)
@@ -289,6 +306,10 @@ namespace Airudit.MdBook.Core
             // Remember the page's first level-1 heading; the single-file table of contents
             // uses it as the page label instead of the bare file name.
             item.Title = ExtractFirstHeadingTitle(dom);
+
+            // Pre-render every diagram fence to SVG (async, in parallel) before Markdig's synchronous
+            // renderer runs; the renderer then just inlines the cached SVGs (issue #5).
+            await DiagramPrerenderer.RenderAsync(dom, diagramProvider, this.layer.ColorScheme, this.layer.DiagramSvgs, this.layer.DiagramWarnings, diagramLog, cancellationToken).ConfigureAwait(false);
 
             // generate HTML
             string htmlContents = Markdown.ToHtml(dom, this.layer.Pipeline);

@@ -610,7 +610,7 @@ public class OutputModeTests
         var context = new PackageContext();
         context.AddLayer(new CommandLineLayer(new StringWriter(), new StringWriter(), new StringReader(string.Empty), args));
         var task = new CommandLineMarkdownToHtmlPrepareTask();
-        task.Visit(context);
+        task.VisitAsync(context).GetAwaiter().GetResult();
         return context.RequireSingleLayer<SimpleMarkdownToHtmlLayer>();
     }
 
@@ -625,8 +625,8 @@ public class OutputModeTests
         var context = new PackageContext();
         context.AddLayer(layer);
         var task = new SimpleMarkdownToHtmlTask();
-        task.Visit(context);
-        task.Run(context);
+        task.VisitAsync(context).GetAwaiter().GetResult();
+        task.RunAsync(context).GetAwaiter().GetResult();
         return item;
     }
 
@@ -665,17 +665,17 @@ public class OutputModeTests
         };
         foreach (var task in tasks)
         {
-            task.Visit(context);
+            task.VisitAsync(context).GetAwaiter().GetResult();
         }
 
         foreach (var task in tasks)
         {
-            task.Verify(context);
+            task.VerifyAsync(context).GetAwaiter().GetResult();
         }
 
         foreach (var task in tasks)
         {
-            task.Run(context);
+            task.RunAsync(context).GetAwaiter().GetResult();
         }
 
         return (output.ToString(), error.ToString());

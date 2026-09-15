@@ -6,18 +6,18 @@ using Markdig;
 
 /// <summary>
 /// Build-time diagram rendering (issue #5), exercised through the public API with a stubbed provider —
-/// no Docker and no network. Covers fence routing, the SVG inlining, the template colour-scheme
-/// reader, provider tag sets, and the unrendered-diagram fallback + warning.
+/// no Docker and no network. Covers the async pre-render pass, the SVG inlining, fence routing, the
+/// template colour-scheme reader, provider tag sets, and the unrendered-diagram fallback + warning.
 /// </summary>
 public class DiagramRenderingTests
 {
-    // --- rendering pipeline (stub provider) ---
+    // --- pre-render + render pipeline (stub provider) ---
 
     [Fact]
-    public void A_recognised_diagram_fence_is_replaced_by_inline_svg()
+    public async Task A_recognised_diagram_fence_is_replaced_by_inline_svg()
     {
         var svg = "<?xml version=\"1.0\"?>\n<!DOCTYPE svg>\n<svg id=\"d\"><g/></svg>\n";
-        var html = Render("```mermaid\nA-->B\n```", new StubProvider("mermaid", svg));
+        var html = await RenderAsync("```mermaid\nA-->B\n```", new StubProvider("mermaid", svg));
 
         Assert.Contains("<figure class=\"diagram\">", html);
         Assert.Contains("<svg id=\"d\">", html);
@@ -27,22 +27,22 @@ public class DiagramRenderingTests
     }
 
     [Fact]
-    public void The_active_color_scheme_is_passed_to_the_provider()
+    public async Task The_active_color_scheme_is_passed_to_the_provider()
     {
         DiagramColorScheme? seen = null;
         var provider = new StubProvider("mermaid", "<svg/>", s => seen = s);
 
-        Render("```mermaid\nA-->B\n```", provider, scheme: DiagramColorScheme.Dark);
+        await RenderAsync("```mermaid\nA-->B\n```", provider, scheme: DiagramColorScheme.Dark);
 
         Assert.Equal(DiagramColorScheme.Dark, seen);
     }
 
     [Fact]
-    public void An_unrendered_diagram_falls_back_to_plain_and_is_noted()
+    public async Task An_unrendered_diagram_falls_back_to_plain_and_is_noted()
     {
         var sink = new DiagramWarningSink();
         // Provider that cannot render mermaid (only knows plantuml): the fence must stay plain.
-        var html = Render("```mermaid\nA-->B\n```", new StubProvider("plantuml", "<svg/>"), sink);
+        var html = await RenderAsync("```mermaid\nA-->B\n```", new StubProvider("plantuml", "<svg/>"), sink);
 
         Assert.DoesNotContain("<figure", html);
         Assert.Contains("language-mermaid", html); // plain fenced code preserved, source visible
@@ -51,14 +51,24 @@ public class DiagramRenderingTests
     }
 
     [Fact]
-    public void A_non_diagram_fence_is_left_untouched_and_not_noted()
+    public async Task A_non_diagram_fence_is_left_untouched_and_not_noted()
     {
         var sink = new DiagramWarningSink();
-        var html = Render("```csharp\nvar x = 1;\n```", new StubProvider("mermaid", "<svg/>"), sink);
+        var html = await RenderAsync("```csharp\nvar x = 1;\n```", new StubProvider("mermaid", "<svg/>"), sink);
 
         Assert.DoesNotContain("<figure", html);
         Assert.Contains("language-csharp", html);
         Assert.False(sink.Any);
+    }
+
+    [Fact]
+    public async Task An_identical_diagram_is_rendered_once_and_reused()
+    {
+        var provider = new StubProvider("mermaid", "<svg id=\"x\"/>");
+        var html = await RenderAsync("```mermaid\nA-->B\n```\n\ntext\n\n```mermaid\nA-->B\n```", provider);
+
+        Assert.Equal(2, Occurrences(html, "<figure class=\"diagram\">")); // both fences rendered
+        Assert.Equal(1, provider.RenderCount);                            // but the provider ran once
     }
 
     // --- SvgInliner ---
@@ -140,12 +150,30 @@ public class DiagramRenderingTests
 
     // --- helpers ---
 
-    private static string Render(string markdown, IDiagramProvider provider, DiagramWarningSink? sink = null, DiagramColorScheme scheme = DiagramColorScheme.Light)
+    // Mirrors the real flow: parse, run the async pre-render pass into a cache, then render
+    // synchronously through the cache-reading extension.
+    private static async Task<string> RenderAsync(string markdown, IDiagramProvider provider, DiagramWarningSink? sink = null, DiagramColorScheme scheme = DiagramColorScheme.Light)
     {
         sink ??= new DiagramWarningSink();
+        var cache = new Dictionary<string, string?>(StringComparer.Ordinal);
+
+        var document = Markdown.Parse(markdown);
+        await DiagramPrerenderer.RenderAsync(document, provider, scheme, cache, sink);
+
         var builder = new MarkdownPipelineBuilder();
-        builder.Extensions.Add(new DiagramRenderingExtension(provider, scheme, sink));
+        builder.Extensions.Add(new DiagramRenderingExtension(cache));
         return Markdown.ToHtml(markdown, builder.Build());
+    }
+
+    private static int Occurrences(string haystack, string needle)
+    {
+        var count = 0;
+        for (var i = haystack.IndexOf(needle, StringComparison.Ordinal); i >= 0; i = haystack.IndexOf(needle, i + needle.Length, StringComparison.Ordinal))
+        {
+            count++;
+        }
+
+        return count;
     }
 
     private sealed class StubProvider : IDiagramProvider
@@ -153,6 +181,7 @@ public class DiagramRenderingTests
         private readonly string tag;
         private readonly string? svg;
         private readonly Action<DiagramColorScheme>? onRender;
+        private int renderCount;
 
         public StubProvider(string tag, string? svg, Action<DiagramColorScheme>? onRender = null)
         {
@@ -161,22 +190,18 @@ public class DiagramRenderingTests
             this.onRender = onRender;
         }
 
+        public int RenderCount => this.renderCount;
+
         public bool CanRender(string diagramTag)
         {
             return string.Equals(diagramTag, this.tag, StringComparison.OrdinalIgnoreCase);
         }
 
-        public bool TryRenderSvg(string diagramTag, string source, DiagramColorScheme scheme, out string svg)
+        public Task<string?> RenderSvgAsync(string diagramTag, string source, DiagramColorScheme scheme, CancellationToken cancellationToken)
         {
+            Interlocked.Increment(ref this.renderCount);
             this.onRender?.Invoke(scheme);
-            if (this.CanRender(diagramTag) && this.svg != null)
-            {
-                svg = this.svg;
-                return true;
-            }
-
-            svg = string.Empty;
-            return false;
+            return Task.FromResult(this.CanRender(diagramTag) && this.svg != null ? this.svg : null);
         }
     }
 }

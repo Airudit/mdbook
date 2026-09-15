@@ -395,8 +395,8 @@ public class SimpleMarkdownToHtmlTaskTests
             var context = new PackageContext();
             context.AddLayer(layer);
             var task = new SimpleMarkdownToHtmlTask();
-            task.Visit(context);
-            task.Run(context);
+            task.VisitAsync(context).GetAwaiter().GetResult();
+            task.RunAsync(context).GetAwaiter().GetResult();
 
             return (File.ReadAllText(sourcePath + ".html", Encoding.UTF8), layer);
         }
@@ -470,8 +470,8 @@ public class SimpleMarkdownToHtmlTaskTests
             var context = new PackageContext();
             context.AddLayer(layer);
             var task = new SimpleMarkdownToHtmlTask();
-            task.Visit(context);
-            task.Run(context);
+            task.VisitAsync(context).GetAwaiter().GetResult();
+            task.RunAsync(context).GetAwaiter().GetResult();
 
             return File.ReadAllText(sourcePath + ".html", Encoding.UTF8);
         }
@@ -509,8 +509,8 @@ public class SimpleMarkdownToHtmlTaskTests
             var context = new PackageContext();
             context.AddLayer(layer);
             var task = new SimpleMarkdownToHtmlTask();
-            task.Visit(context);
-            task.Run(context);
+            task.VisitAsync(context).GetAwaiter().GetResult();
+            task.RunAsync(context).GetAwaiter().GetResult();
 
             return File.ReadAllText(hostPath + ".html", Encoding.UTF8);
         }
