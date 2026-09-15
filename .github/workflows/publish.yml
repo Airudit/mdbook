@@ -164,6 +164,11 @@ jobs:
       # explicitly to fix their reading order; the rest of the folder follows (alphabetical).
       # The explicit lead order applies to the language named here (en); other languages fall
       # back to alphabetical until the tool learns language-agnostic ordering.
+      #
+      # Diagrams are rendered through the public Kroki server. The help book's diagrams are
+      # the project's own public architecture illustrations, so their source is fine to send.
+      # This also dogfoods the diagram feature: if a diagram ever fails to render, this step
+      # surfaces it. Diagrams use classic mermaid syntax that kroki.io renders reliably.
       - name: Render help books
         run: |
           VERSION="${{ steps.version.outputs.version }}"
@@ -174,6 +179,7 @@ jobs:
               help/README.en.md help/getting-started.en.md help/cli-usage.en.md help \
               --Single-File "dist/help/mdbook-help-${VERSION}.{lang}.${variant}.html" \
               --ByLang \
+              --Diagrams kroki --KrokiUrl https://kroki.io/ \
               --Template "builtin:default.${variant}.html"
           done
 
