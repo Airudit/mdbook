@@ -21,22 +21,12 @@ argument and the run stops.
 Operation modes
 ----------------------------------------------------------------
 
-`mdbook` emits HTML in one of three ways. They can be combined, and `--Side` brings
-back the in-place files whenever a destination would otherwise replace them.
+### Introduction
 
-- **In place (default)** — for every input `X.md`, a file `X.md.html` is written next
-  to the source; a folder is rendered in place, preserving its structure. This is what
-  you get when no destination option is given.
-- **Export** — `--Export <dir>` copies the generated pages into `<dir>`, preserving
-  each file's relative path, and copies the non-Markdown files you link to (images,
-  downloads) alongside. It may be given more than once to export to several places.
-- **Single file** — `--Single-File <file>` combines every page into one self-contained
-  HTML document — its own table of contents, in-file navigation, and (by default) its
-  images inlined. This is `mdbook`'s headline output; see
-  [Single-file books](single-file.en.md).
-
-Giving `--Export` or `--Single-File` **suppresses** the in-place `X.md.html` files — the
-destination is assumed to be what you want. Pass `--Side` to keep writing them as well.
+`mdbook` emits HTML in one of three ways, described below. They can be combined,
+and giving `--Export` or `--Single-File` **suppresses** the in-place `X.md.html`
+files — the destination is assumed to be what you want; pass `--Side` to keep
+writing them as well.
 
 | Mode | Example | What is written | In-place `X.md.html` |
 |---|---|---|---|
@@ -49,6 +39,32 @@ stays navigable; with `--Single-File` they instead resolve to the target page's 
 `#anchor`. Links to external URLs (`http`, `https`, `ftp`) get a `class="external"` so a
 template can style them. Files pulled in with `{{include: …}}` are partials and are not
 written as pages of their own (see [Including files](includes.en.md)).
+
+For the reader's side of each mode — who opens the output and how — see
+[Reading a book](reading.en.md).
+
+### In place (default)
+
+For every input `X.md`, a file `X.md.html` is written next to the source; a folder is
+rendered in place, preserving its structure. This is what you get when no destination
+option is given. Reach for it to **read and review your local Markdown properly while
+you work on it** — keep the folder open in a browser and refresh as you edit.
+
+### Export
+
+`--Export <dir>` copies the generated pages into `<dir>`, preserving each file's
+relative path, and copies the non-Markdown files you link to (images, downloads)
+alongside. It may be given more than once to export to several places. This is the mode
+to **publish a navigable copy to a static-file web server** — a mirrored tree, ready to
+drop into a site root.
+
+### Single file
+
+`--Single-File <file>` combines every page into one self-contained HTML document — its
+own table of contents, in-file navigation, and (by default) its images inlined. This is
+`mdbook`'s headline output: **one portable, offline document to hand to a reader**, with
+no source folder, no server, and no `mdbook` needed to open it. See
+[Single-file books](single-file.en.md).
 
 Options
 ----------------------------------------------------------------
