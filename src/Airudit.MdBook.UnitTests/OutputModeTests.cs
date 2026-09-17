@@ -644,7 +644,7 @@ public class OutputModeTests
         Assert.Contains("id=\"intro\"", html);
         Assert.Contains("Intro-marker.", html);
         // intro sits before the table of contents (book heading -> intro -> contents -> pages)
-        Assert.True(html.IndexOf("Intro-marker.", StringComparison.Ordinal) < html.IndexOf("<article id=list>", StringComparison.Ordinal));
+        Assert.True(html.IndexOf("Intro-marker.", StringComparison.Ordinal) < html.IndexOf("<article id=toc>", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -714,10 +714,10 @@ public class OutputModeTests
         return count;
     }
 
-    // Extracts the "<article id=list>...</article>" table-of-contents block.
+    // Extracts the "<article id=toc>...</article>" table-of-contents block.
     private static string TableOfContents(string html)
     {
-        var start = html.IndexOf("<article id=list>", StringComparison.Ordinal);
+        var start = html.IndexOf("<article id=toc>", StringComparison.Ordinal);
         var end = html.IndexOf("</article>", start, StringComparison.Ordinal);
         return html.Substring(start, end - start);
     }

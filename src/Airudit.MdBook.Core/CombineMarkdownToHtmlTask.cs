@@ -205,7 +205,7 @@ public class CombineMarkdownToHtmlTask : ITask
 
         // Table of contents, headed by a language-localized label ("Contents" / "Sommaire" / ...).
         using var list = new StringWriter();
-        list.WriteLine("<article id=list>");
+        list.WriteLine("<article id=toc>");
         list.WriteLine("<h2 class=\"toc-title\">" + HttpUtility.HtmlEncode(TableOfContentsHeading(lang)) + "</h2>");
         WriteTableOfContents(list, items);
         list.WriteLine("</article>");
