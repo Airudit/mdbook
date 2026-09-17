@@ -34,12 +34,12 @@ namespace Airudit.MdBook.Core
         public List<SimpleMarkdownToHtmlLayerItem> Items { get; } = new List<SimpleMarkdownToHtmlLayerItem>();
 
         /// <summary>
-        /// Book-metadata sidecar files (<c>.mdbook[.lang].md</c>) named on the command line. They are
+        /// Book-metadata files (<c>.mdbook[.lang].md</c>) named on the command line. They are
         /// not pages: excluded from <see cref="Items"/>, the table of contents and every per-page
         /// output. Their front-matter names the book and their body, when present, is its
         /// introduction, both used only by the combined <c>--Single-File</c> output.
         /// </summary>
-        public List<SimpleMarkdownToHtmlLayerItem> Sidecars { get; } = new List<SimpleMarkdownToHtmlLayerItem>();
+        public List<SimpleMarkdownToHtmlLayerItem> Manifests { get; } = new List<SimpleMarkdownToHtmlLayerItem>();
 
         /// <summary>
         /// Export orders.
@@ -149,7 +149,7 @@ namespace Airudit.MdBook.Core
             return item;
         }
 
-        public SimpleMarkdownToHtmlLayerItem AddSidecar(FileInfo sourceFile)
+        public SimpleMarkdownToHtmlLayerItem AddManifest(FileInfo sourceFile)
         {
             if (sourceFile == null)
             {
@@ -159,9 +159,9 @@ namespace Airudit.MdBook.Core
             var item = new SimpleMarkdownToHtmlLayerItem();
             item.SourceFile = sourceFile;
             item.IsMarkdown = true;
-            item.IsSidecar = true;
+            item.IsManifest = true;
             item.TargetFile = new FileInfo(sourceFile.FullName + ".html");
-            this.Sidecars.Add(item);
+            this.Manifests.Add(item);
             return item;
         }
 
@@ -175,11 +175,11 @@ namespace Airudit.MdBook.Core
         public bool IsMarkdown { get; set; }
 
         /// <summary>
-        /// True for a <c>.mdbook[.lang].md</c> book-metadata sidecar (see
-        /// <see cref="SimpleMarkdownToHtmlLayer.Sidecars"/>): processed for its front-matter and
+        /// True for a <c>.mdbook[.lang].md</c> book-metadata file (see
+        /// <see cref="SimpleMarkdownToHtmlLayer.Manifests"/>): processed for its front-matter and
         /// body but never written in place, exported, or listed as a page.
         /// </summary>
-        public bool IsSidecar { get; set; }
+        public bool IsManifest { get; set; }
 
         public string[]? RelativePath { get; set; }
         public string? HtmlContents { get; set; }

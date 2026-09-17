@@ -193,13 +193,13 @@ public class CombineMarkdownToHtmlTask : ITask
             contents.WriteLine();
         }
         
-        // The book-metadata sidecar (.mdbook[.lang].md) for this book, if one was supplied: source
+        // The book-metadata file (.mdbook[.lang].md) for this book, if one was supplied: source
         // of the book title, the book language, and an optional introduction.
-        var sidecar = ResolveSidecar(layer, documentLang);
+        var manifest = ResolveManifest(layer, documentLang);
 
-        // --ByLang passes the book's language; otherwise take the sidecar's, then the pages' majority.
+        // --ByLang passes the book's language; otherwise take the .mdbook file's, then the pages' majority.
         var langName = documentLang
-            ?? sidecar?.Lang?.Name
+            ?? manifest?.Lang?.Name
             ?? (langs.Count > 0 ? langs.OrderByDescending(x => x.Value).First().Key : "en-US");
         var lang = new CultureInfo(langName);
 
@@ -212,15 +212,15 @@ public class CombineMarkdownToHtmlTask : ITask
         list.WriteLine();
         list.WriteLine();
 
-        // A sidecar body becomes the book's introduction, placed before the table of contents
+        // A .mdbook file's body becomes the book's introduction, placed before the table of contents
         // (book heading -> intro -> contents -> pages). Its local links resolve to in-file anchors.
         var intro = string.Empty;
-        if (sidecar != null && !string.IsNullOrWhiteSpace(sidecar.HtmlContents))
+        if (manifest != null && !string.IsNullOrWhiteSpace(manifest.HtmlContents))
         {
             using var introWriter = new StringWriter();
             introWriter.WriteLine("<article id=\"intro\">");
             introWriter.WriteLine();
-            introWriter.WriteLine(RewriteLocalLinksToAnchors(sidecar.HtmlContents?.ToString(), sidecar.SourceFile.DirectoryName, slugBySource));
+            introWriter.WriteLine(RewriteLocalLinksToAnchors(manifest.HtmlContents?.ToString(), manifest.SourceFile.DirectoryName, slugBySource));
             introWriter.WriteLine();
             introWriter.WriteLine("</article>");
             introWriter.WriteLine();
@@ -234,7 +234,7 @@ public class CombineMarkdownToHtmlTask : ITask
         // - {{{Contents}}}   the markdown-converted HTML part
         // - {{{Lang}}}       the page's lang
         // - {{{Info}}}       a information string
-        var title = ResolveBookTitle(layer, sidecar, items, outputPath);
+        var title = ResolveBookTitle(layer, manifest, items, outputPath);
         var pageContents = replacer.Replace(layer.Template, new MatchEvaluator(match =>
         {
             var key = match.Groups[1].Value;
@@ -411,18 +411,18 @@ public class CombineMarkdownToHtmlTask : ITask
         list.WriteLine("</ul>");
     }
 
-    // Picks the .mdbook sidecar that applies to this book: the one whose language matches, else a
-    // language-neutral .mdbook.md, else (for a single merged book) the only sidecar supplied.
-    private static SimpleMarkdownToHtmlLayerItem? ResolveSidecar(SimpleMarkdownToHtmlLayer layer, string documentLang)
+    // Picks the .mdbook file that applies to this book: the one whose language matches, else a
+    // language-neutral .mdbook.md, else (for a single merged book) the only one supplied.
+    private static SimpleMarkdownToHtmlLayerItem? ResolveManifest(SimpleMarkdownToHtmlLayer layer, string documentLang)
     {
-        if (layer.Sidecars.Count == 0)
+        if (layer.Manifests.Count == 0)
         {
             return null;
         }
 
         if (documentLang != null)
         {
-            var match = layer.Sidecars.FirstOrDefault(candidate =>
+            var match = layer.Manifests.FirstOrDefault(candidate =>
                 candidate.Lang != null
                 && string.Equals(candidate.Lang.TwoLetterISOLanguageName, documentLang, StringComparison.OrdinalIgnoreCase));
             if (match != null)
@@ -431,13 +431,13 @@ public class CombineMarkdownToHtmlTask : ITask
             }
         }
 
-        var neutral = layer.Sidecars.FirstOrDefault(candidate => candidate.Lang == null);
+        var neutral = layer.Manifests.FirstOrDefault(candidate => candidate.Lang == null);
         if (neutral != null)
         {
             return neutral;
         }
 
-        return documentLang == null && layer.Sidecars.Count == 1 ? layer.Sidecars[0] : null;
+        return documentLang == null && layer.Manifests.Count == 1 ? layer.Manifests[0] : null;
     }
 
     // The localized table-of-contents heading for a language, defaulting to English "Contents".
@@ -451,18 +451,18 @@ public class CombineMarkdownToHtmlTask : ITask
         return "Contents";
     }
 
-    // The combined book's <title>: --Title, else the sidecar title, else the first page's
+    // The combined book's <title>: --Title, else the .mdbook file's title, else the first page's
     // front-matter title, else its first heading, else the output file name.
-    private static string ResolveBookTitle(SimpleMarkdownToHtmlLayer layer, SimpleMarkdownToHtmlLayerItem? sidecar, IReadOnlyList<SimpleMarkdownToHtmlLayerItem> items, string outputPath)
+    private static string ResolveBookTitle(SimpleMarkdownToHtmlLayer layer, SimpleMarkdownToHtmlLayerItem? manifest, IReadOnlyList<SimpleMarkdownToHtmlLayerItem> items, string outputPath)
     {
         if (!string.IsNullOrWhiteSpace(layer.Title))
         {
             return layer.Title;
         }
 
-        if (!string.IsNullOrWhiteSpace(sidecar?.FrontMatterTitle))
+        if (!string.IsNullOrWhiteSpace(manifest?.FrontMatterTitle))
         {
-            return sidecar.FrontMatterTitle;
+            return manifest.FrontMatterTitle;
         }
 
         var firstPage = items.FirstOrDefault(item => item.IsMarkdown);

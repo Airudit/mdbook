@@ -162,10 +162,10 @@ table-of-contents label. Only `title` is read for now; unknown keys are ignored.
 ### A book's metadata and cover: `.mdbook.<lang>.md`
 
 A file named `.mdbook.md` — or `.mdbook.<lang>.md` per language (`.mdbook.en.md`,
-`.mdbook.fr.md`) — is a **book-metadata sidecar**, not a page. Name it among the inputs and
+`.mdbook.fr.md`) — is a **book-metadata file**, not a page. Name it among the inputs and
 `mdbook` reads its front-matter as the book's metadata (`title`, `lang`) and, if it has body
 text, renders that body as the book's **introduction**, placed above the table of contents.
-The sidecar is never rendered, exported, or listed as a page, and one found by scanning a
+The `.mdbook` file is never rendered, exported, or listed as a page, and one found by scanning a
 folder is ignored (name it explicitly to use it). It applies to the combined `--Single-File`
 output only; for the full behaviour and the book-title fallback chain, see
 [Single-file books](single-file.en.md).
@@ -232,14 +232,14 @@ mdbook docs/ --Single-File docs.{lang}.html --ByLang
 ```
 
 Build one book per language, each with its own cover — title and introduction — from a
-`.mdbook.<lang>.md` sidecar. The shell expands `.mdbook.*.md` to the per-language sidecars and
+`.mdbook.<lang>.md` file. The shell expands `.mdbook.*.md` to the per-language files and
 `.` supplies the pages, so a generic build script never has to list the files:
 
 ```bash
 mdbook --Single-File book.html --ByLang .mdbook.*.md .
 ```
 
-Each sidecar (`.mdbook.en.md`, `.mdbook.fr.md`) sets its book's title and intro; `--ByLang`
+Each file (`.mdbook.en.md`, `.mdbook.fr.md`) sets its book's title and intro; `--ByLang`
 writes `book.en.html` and `book.fr.html`. See [Single-file books](single-file.en.md).
 
 Render with the dark built-in template:

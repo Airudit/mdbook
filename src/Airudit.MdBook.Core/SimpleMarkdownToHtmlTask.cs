@@ -169,13 +169,13 @@ namespace Airudit.MdBook.Core
                 await this.ProcessFileMarkdownAsync(context, item, diagramProvider, diagramLog, cancellationToken).ConfigureAwait(false);
             }
 
-            // Book-metadata sidecars feed only the combined output, so process them for their
+            // Book-metadata manifests feed only the combined output, so process them for their
             // front-matter and intro body only when a single file is being built.
             if (this.layer.SingleFile != null)
             {
-                foreach (var sidecar in this.layer.Sidecars)
+                foreach (var manifest in this.layer.Manifests)
                 {
-                    await this.ProcessFileMarkdownAsync(context, sidecar, diagramProvider, diagramLog, cancellationToken).ConfigureAwait(false);
+                    await this.ProcessFileMarkdownAsync(context, manifest, diagramProvider, diagramLog, cancellationToken).ConfigureAwait(false);
                 }
             }
 
@@ -337,9 +337,9 @@ namespace Airudit.MdBook.Core
             // front-matter title apart from a first heading.
             item.FrontMatterTitle = ExtractFrontMatterTitle(dom);
 
-            // A sidecar's front-matter `lang:` sets the book language authoritatively; otherwise its
+            // A .mdbook file's front-matter `lang:` sets the book language authoritatively; otherwise its
             // language stays the one inferred from the file name's ".xx" segment above.
-            if (item.IsSidecar)
+            if (item.IsManifest)
             {
                 var frontMatterLang = FrontMatterScalar(dom, "lang");
                 if (frontMatterLang != null)
@@ -420,9 +420,9 @@ namespace Airudit.MdBook.Core
             // keep the full page in memory so it can be exported even when not written in place
             item.RenderedPage = page;
 
-            // write the in-place side-by-side HTML file, unless suppressed (issue #9). A sidecar is
+            // write the in-place side-by-side HTML file, unless suppressed (issue #9). A .mdbook file is
             // never written in place — it is book metadata, not a page.
-            if (this.layer.SideBySide && !item.IsSidecar)
+            if (this.layer.SideBySide && !item.IsManifest)
             {
                 using (var targetStream = new FileStream(item.TargetFile.FullName, FileMode.Create, FileAccess.Write, FileShare.None))
                 {

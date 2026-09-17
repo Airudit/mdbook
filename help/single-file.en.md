@@ -30,12 +30,12 @@ own — separate from any single page. The `<title>` is resolved from the first 
 is set:
 
 1. `--Title <str>` on the command line;
-2. the **sidecar** title (below);
+2. the **`.mdbook` file** title (below);
 3. the first page's front-matter `title:`;
 4. the first page's first heading;
 5. the output file name.
 
-### The `.mdbook.<lang>.md` sidecar
+### The `.mdbook.<lang>.md` file
 
 Name a file `.mdbook.md` — or `.mdbook.<lang>.md` per language — among the inputs to give the
 book its own metadata and cover:
@@ -54,10 +54,10 @@ Welcome. Start with [installation](install.en.md), then [licensing](licensing.en
 - If it has **body text**, that body is rendered as the book's **introduction**, placed above
   the table of contents — a natural home for a curated list of the pages that matter, with
   links that resolve to in-file anchors like any other cross-page link.
-- The sidecar is **not a page**: it is never rendered in place, exported, or listed in the
+- The `.mdbook` file is **not a page**: it is never rendered in place, exported, or listed in the
   table of contents, and a `.mdbook.*.md` found by scanning a folder is ignored (name it
   explicitly on the command line to use it).
-- Under `--ByLang`, each book uses the sidecar whose language matches, falling back to a
+- Under `--ByLang`, each book uses the `.mdbook` file whose language matches, falling back to a
   language-neutral `.mdbook.md`. Give one per language for a localized cover:
 
 ```bash
@@ -168,6 +168,6 @@ Known limitations
   language is absent from the other languages' books; there is no automatic fallback to
   another language yet. Tracked in
   [issue #24](https://github.com/Airudit/mdbook/issues/24).
-- **The `.mdbook` sidecar affects the combined output only.** In the in-place and `--Export`
+- **The `.mdbook` file affects the combined output only.** In the in-place and `--Export`
   modes it is ignored — no book title or introduction there; use `--Title` and per-page
   front-matter for titles in those modes.

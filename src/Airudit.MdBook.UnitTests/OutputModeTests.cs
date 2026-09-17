@@ -569,7 +569,7 @@ public class OutputModeTests
         Assert.Contains("<article id=\"shared\"", html);
     }
 
-    // --- issue #29: --Title, the book-title fallback chain, and the .mdbook sidecar ---
+    // --- issue #29: --Title, the book-title fallback chain, and the .mdbook file ---
 
     [Fact]
     public void Title_argument_sets_the_single_file_book_title()
@@ -615,7 +615,7 @@ public class OutputModeTests
     }
 
     [Fact]
-    public void A_book_without_a_sidecar_uses_the_english_toc_heading()
+    public void A_book_without_a_manifest_uses_the_english_toc_heading()
     {
         using var dir = new TempTree(("a.md", "# A"));
         var single = Path.Combine(dir.Root, "book.html");
@@ -624,7 +624,7 @@ public class OutputModeTests
     }
 
     [Fact]
-    public void Sidecar_front_matter_sets_the_book_title()
+    public void Manifest_front_matter_sets_the_book_title()
     {
         using var dir = new TempTree((".mdbook.md", "---\ntitle: Handbook\n---"), ("a.md", "# Alpha"));
         var single = Path.Combine(dir.Root, "book.html");
@@ -633,7 +633,7 @@ public class OutputModeTests
     }
 
     [Fact]
-    public void Sidecar_body_becomes_the_book_introduction_before_the_toc()
+    public void Manifest_body_becomes_the_book_introduction_before_the_toc()
     {
         using var dir = new TempTree(
             (".mdbook.md", "---\ntitle: Handbook\n---\n\nIntro-marker."),
@@ -648,7 +648,7 @@ public class OutputModeTests
     }
 
     [Fact]
-    public void Sidecar_is_not_rendered_or_listed_as_a_page()
+    public void Manifest_is_not_rendered_or_listed_as_a_page()
     {
         using var dir = new TempTree((".mdbook.md", "---\ntitle: Handbook\n---"), ("a.md", "# Alpha"));
         var single = Path.Combine(dir.Root, "book.html");
@@ -660,7 +660,7 @@ public class OutputModeTests
     }
 
     [Fact]
-    public void Sidecar_lang_localizes_the_toc_heading()
+    public void Manifest_lang_localizes_the_toc_heading()
     {
         using var dir = new TempTree((".mdbook.fr.md", "---\ntitle: Manuel\nlang: fr\n---"), ("a.fr.md", "# Alpha"));
         var single = Path.Combine(dir.Root, "book.html");
@@ -669,7 +669,7 @@ public class OutputModeTests
     }
 
     [Fact]
-    public void A_sidecar_found_by_a_directory_scan_is_not_used_or_rendered()
+    public void A_manifest_found_by_a_directory_scan_is_not_used_or_rendered()
     {
         using var dir = new TempTree(
             ("book/.mdbook.md", "---\ntitle: Should Not Win\n---\n\nUnused intro."),
@@ -684,7 +684,7 @@ public class OutputModeTests
     }
 
     [Fact]
-    public void ByLang_uses_the_matching_language_sidecar_for_each_book()
+    public void ByLang_uses_the_matching_language_manifest_for_each_book()
     {
         using var dir = new TempTree(
             (".mdbook.en.md", "---\ntitle: Handbook\n---"),
