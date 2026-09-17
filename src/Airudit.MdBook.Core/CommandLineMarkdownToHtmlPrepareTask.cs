@@ -17,6 +17,18 @@ namespace Airudit.MdBook.Core
     {
         private const string MarkdownLayerKey = "MarkdownToHtml";
 
+        // A book-metadata sidecar file name: ".mdbook.md" or ".mdbook.<lang>.md" (e.g. ".mdbook.en.md").
+        private static readonly System.Text.RegularExpressions.Regex sidecarFileNameRegex =
+            new System.Text.RegularExpressions.Regex(
+                @"^\.mdbook(\.[A-Za-z][A-Za-z-]*)?\.md$",
+                System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Compiled);
+
+        // Whether a file name is a book-metadata sidecar (see SimpleMarkdownToHtmlLayer.Sidecars).
+        private static bool IsSidecarFileName(string fileName)
+        {
+            return sidecarFileNameRegex.IsMatch(fileName);
+        }
+
         public CommandLineMarkdownToHtmlPrepareTask()
         {
         }
@@ -61,6 +73,7 @@ namespace Airudit.MdBook.Core
             string krokiUrlArg = null;
             var errors = new List<string>();
             var inputs = new List<FileSystemInfo>();
+            var sidecars = new List<FileInfo>();
             using var args = new ParseArgs(interactor.Arguments);
             while (args.MoveNext())
             {
@@ -176,6 +189,18 @@ namespace Airudit.MdBook.Core
                         errors.Add("Argument " + arg + " must be followed by a file path. ");
                     }
                 }
+                else if (args.Is(arg = "--title"))
+                {
+                    if (args.Has(1))
+                    {
+                        args.MoveNext();
+                        layer.Title = args.Current;
+                    }
+                    else
+                    {
+                        errors.Add("Argument " + arg + " must be followed by a title. ");
+                    }
+                }
                 else
                 {
                     // extra values: input files and directories, kept in command-line order
@@ -185,7 +210,16 @@ namespace Airudit.MdBook.Core
                     }
                     else if (File.Exists(args.Current))
                     {
-                        inputs.Add(new FileInfo(args.Current));
+                        var file = new FileInfo(args.Current);
+                        if (IsSidecarFileName(file.Name))
+                        {
+                            // A .mdbook[.lang].md file names the book, it is not a page.
+                            sidecars.Add(file);
+                        }
+                        else
+                        {
+                            inputs.Add(file);
+                        }
                     }
                     else
                     {
@@ -426,6 +460,17 @@ namespace Airudit.MdBook.Core
                     }
                 }
             }
+
+            // Register the book-metadata sidecars, de-duplicated by full path. They stay out of the
+            // page list (layer.Items) so they are never rendered, exported, or listed as a page.
+            var seenSidecars = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var sidecar in sidecars)
+            {
+                if (seenSidecars.Add(sidecar.FullName))
+                {
+                    layer.AddSidecar(sidecar);
+                }
+            }
         }
 
         private void Verify(PackageContext context)
@@ -443,6 +488,13 @@ namespace Airudit.MdBook.Core
             Array.Sort(mdFiles, CompareByHoistThenName);
             foreach (var file in mdFiles)
             {
+                // A .mdbook[.lang].md sidecar found by a directory scan is not auto-used in v1, and is
+                // never a page: skip it so it is neither rendered nor listed.
+                if (IsSidecarFileName(file.Name))
+                {
+                    continue;
+                }
+
                 if (seen.Add(file.FullName))
                 {
                     var item = layer.AddFile(file, true);

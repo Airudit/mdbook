@@ -34,6 +34,14 @@ namespace Airudit.MdBook.Core
         public List<SimpleMarkdownToHtmlLayerItem> Items { get; } = new List<SimpleMarkdownToHtmlLayerItem>();
 
         /// <summary>
+        /// Book-metadata sidecar files (<c>.mdbook[.lang].md</c>) named on the command line. They are
+        /// not pages: excluded from <see cref="Items"/>, the table of contents and every per-page
+        /// output. Their front-matter names the book and their body, when present, is its
+        /// introduction, both used only by the combined <c>--Single-File</c> output.
+        /// </summary>
+        public List<SimpleMarkdownToHtmlLayerItem> Sidecars { get; } = new List<SimpleMarkdownToHtmlLayerItem>();
+
+        /// <summary>
         /// Export orders.
         /// </summary>
         public List<SimpleMarkdownToHtmlLayerExport> Exports { get; } = new List<SimpleMarkdownToHtmlLayerExport>();
@@ -107,8 +115,16 @@ namespace Airudit.MdBook.Core
         public bool Verbose { get; set; }
 
         public string TemplateFilePath { get; set; }
-        
+
         public string? Copyright { get; set; }
+
+        /// <summary>
+        /// An explicit title from <c>--Title</c>, overriding the derived one in every mode. With
+        /// <c>--Single-File</c> it names the book (top of the book-title fallback chain); in
+        /// side/export it overrides each page's <c>&lt;title&gt;</c>. No environment-variable
+        /// fallback — the flag is the only source. Null when not given.
+        /// </summary>
+        public string? Title { get; set; }
 
         public SimpleMarkdownToHtmlLayerItem AddFile(FileInfo sourceFile, bool isMarkdown)
         {
@@ -133,6 +149,22 @@ namespace Airudit.MdBook.Core
             return item;
         }
 
+        public SimpleMarkdownToHtmlLayerItem AddSidecar(FileInfo sourceFile)
+        {
+            if (sourceFile == null)
+            {
+                throw new ArgumentNullException(nameof(sourceFile));
+            }
+
+            var item = new SimpleMarkdownToHtmlLayerItem();
+            item.SourceFile = sourceFile;
+            item.IsMarkdown = true;
+            item.IsSidecar = true;
+            item.TargetFile = new FileInfo(sourceFile.FullName + ".html");
+            this.Sidecars.Add(item);
+            return item;
+        }
+
     }
 
     public sealed class SimpleMarkdownToHtmlLayerItem
@@ -141,6 +173,13 @@ namespace Airudit.MdBook.Core
 
         public FileInfo TargetFile { get; internal set; } = null!;
         public bool IsMarkdown { get; set; }
+
+        /// <summary>
+        /// True for a <c>.mdbook[.lang].md</c> book-metadata sidecar (see
+        /// <see cref="SimpleMarkdownToHtmlLayer.Sidecars"/>): processed for its front-matter and
+        /// body but never written in place, exported, or listed as a page.
+        /// </summary>
+        public bool IsSidecar { get; set; }
 
         public string[]? RelativePath { get; set; }
         public string? HtmlContents { get; set; }
@@ -157,6 +196,14 @@ namespace Airudit.MdBook.Core
         /// in a <c>--single-file</c> bundle, falling back to the file name when absent.
         /// </summary>
         public string? Title { get; set; }
+
+        /// <summary>
+        /// The page's explicit title from a top-of-file YAML front-matter <c>title:</c> key, if any.
+        /// Overrides both the file-name-derived page <c>&lt;title&gt;</c> and the first-heading
+        /// table-of-contents label. Kept apart from <see cref="Title"/> so the book-title fallback
+        /// chain can still distinguish a front-matter title from a first heading.
+        /// </summary>
+        public string? FrontMatterTitle { get; set; }
 
         /// <summary>
         /// The page's stable, path-based anchor slug within a <c>--single-file</c> bundle

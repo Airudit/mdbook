@@ -18,6 +18,19 @@ public class CombineMarkdownToHtmlTask : ITask
 {
     private static readonly Regex replacer = new Regex(@"\{\{\{([^}]+)\}\}\}", RegexOptions.Compiled);
 
+    // Localized table-of-contents heading by two-letter language code. Any language not listed
+    // (including a mixed-language merged book) falls back to English "Contents".
+    private static readonly Dictionary<string, string> tocHeadings = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["en"] = "Contents",
+        ["fr"] = "Sommaire",
+        ["de"] = "Inhalt",
+        ["es"] = "Contenido",
+        ["it"] = "Indice",
+        ["nl"] = "Inhoud",
+        ["pt"] = "Conteúdo",
+    };
+
     // Local (non-external) anchors emitted by SimpleMarkdownToHtmlTask: "<a href="...">".
     // External links carry a class attribute before href, so this only matches local ones.
     private static readonly Regex localLinkRegex = new Regex(@"<a href=""([^""]+)"">", RegexOptions.Compiled);
@@ -140,13 +153,6 @@ public class CombineMarkdownToHtmlTask : ITask
             slugBySource[page.SourceFile.FullName] = page.Anchor;
         }
 
-        using var list = new StringWriter();
-        list.WriteLine("<article id=list>");
-        WriteTableOfContents(list, items);
-        list.WriteLine("</article>");
-        list.WriteLine();
-        list.WriteLine();
-
         var langs = new Dictionary<string, int>();
         using var contents = new StringWriter();
 
@@ -187,17 +193,48 @@ public class CombineMarkdownToHtmlTask : ITask
             contents.WriteLine();
         }
         
+        // The book-metadata sidecar (.mdbook[.lang].md) for this book, if one was supplied: source
+        // of the book title, the book language, and an optional introduction.
+        var sidecar = ResolveSidecar(layer, documentLang);
+
+        // --ByLang passes the book's language; otherwise take the sidecar's, then the pages' majority.
+        var langName = documentLang
+            ?? sidecar?.Lang?.Name
+            ?? (langs.Count > 0 ? langs.OrderByDescending(x => x.Value).First().Key : "en-US");
+        var lang = new CultureInfo(langName);
+
+        // Table of contents, headed by a language-localized label ("Contents" / "Sommaire" / ...).
+        using var list = new StringWriter();
+        list.WriteLine("<article id=list>");
+        list.WriteLine("<h2 class=\"toc-title\">" + HttpUtility.HtmlEncode(TableOfContentsHeading(lang)) + "</h2>");
+        WriteTableOfContents(list, items);
+        list.WriteLine("</article>");
+        list.WriteLine();
+        list.WriteLine();
+
+        // A sidecar body becomes the book's introduction, placed before the table of contents
+        // (book heading -> intro -> contents -> pages). Its local links resolve to in-file anchors.
+        var intro = string.Empty;
+        if (sidecar != null && !string.IsNullOrWhiteSpace(sidecar.HtmlContents))
+        {
+            using var introWriter = new StringWriter();
+            introWriter.WriteLine("<article id=\"intro\">");
+            introWriter.WriteLine();
+            introWriter.WriteLine(RewriteLocalLinksToAnchors(sidecar.HtmlContents?.ToString(), sidecar.SourceFile.DirectoryName, slugBySource));
+            introWriter.WriteLine();
+            introWriter.WriteLine("</article>");
+            introWriter.WriteLine();
+            intro = introWriter.ToString();
+        }
+
         // substitute HTML template variables
         // don't forget to HTML-escape strings!
-        // known variables are: 
+        // known variables are:
         // - {{{PageTitle}}}  the title for the page
         // - {{{Contents}}}   the markdown-converted HTML part
         // - {{{Lang}}}       the page's lang
         // - {{{Info}}}       a information string
-        // --ByLang passes the book's neutral language; otherwise use the pages' majority language.
-        var langName = documentLang ?? (langs.Count > 0 ? langs.OrderByDescending(x => x.Value).First().Key : "en-US");
-        var lang = new CultureInfo(langName);
-        var title = Path.GetFileNameWithoutExtension(outputPath);
+        var title = ResolveBookTitle(layer, sidecar, items, outputPath);
         var pageContents = replacer.Replace(layer.Template, new MatchEvaluator(match =>
         {
             var key = match.Groups[1].Value;
@@ -208,7 +245,7 @@ public class CombineMarkdownToHtmlTask : ITask
             }
             else if ("Contents".Equals(key, StringComparison.Ordinal))
             {
-                return list.ToString() + contents.ToString(); // not escaped
+                return intro + list.ToString() + contents.ToString(); // not escaped
             }
             else if ("Lang".Equals(key, StringComparison.Ordinal))
             {
@@ -374,10 +411,86 @@ public class CombineMarkdownToHtmlTask : ITask
         list.WriteLine("</ul>");
     }
 
-    // A page's table-of-contents label: its first level-1 heading, or the file name with a
-    // trailing ".md" removed when the page has no heading.
+    // Picks the .mdbook sidecar that applies to this book: the one whose language matches, else a
+    // language-neutral .mdbook.md, else (for a single merged book) the only sidecar supplied.
+    private static SimpleMarkdownToHtmlLayerItem? ResolveSidecar(SimpleMarkdownToHtmlLayer layer, string documentLang)
+    {
+        if (layer.Sidecars.Count == 0)
+        {
+            return null;
+        }
+
+        if (documentLang != null)
+        {
+            var match = layer.Sidecars.FirstOrDefault(candidate =>
+                candidate.Lang != null
+                && string.Equals(candidate.Lang.TwoLetterISOLanguageName, documentLang, StringComparison.OrdinalIgnoreCase));
+            if (match != null)
+            {
+                return match;
+            }
+        }
+
+        var neutral = layer.Sidecars.FirstOrDefault(candidate => candidate.Lang == null);
+        if (neutral != null)
+        {
+            return neutral;
+        }
+
+        return documentLang == null && layer.Sidecars.Count == 1 ? layer.Sidecars[0] : null;
+    }
+
+    // The localized table-of-contents heading for a language, defaulting to English "Contents".
+    private static string TableOfContentsHeading(CultureInfo lang)
+    {
+        if (lang != null && tocHeadings.TryGetValue(lang.TwoLetterISOLanguageName, out var label))
+        {
+            return label;
+        }
+
+        return "Contents";
+    }
+
+    // The combined book's <title>: --Title, else the sidecar title, else the first page's
+    // front-matter title, else its first heading, else the output file name.
+    private static string ResolveBookTitle(SimpleMarkdownToHtmlLayer layer, SimpleMarkdownToHtmlLayerItem? sidecar, IReadOnlyList<SimpleMarkdownToHtmlLayerItem> items, string outputPath)
+    {
+        if (!string.IsNullOrWhiteSpace(layer.Title))
+        {
+            return layer.Title;
+        }
+
+        if (!string.IsNullOrWhiteSpace(sidecar?.FrontMatterTitle))
+        {
+            return sidecar.FrontMatterTitle;
+        }
+
+        var firstPage = items.FirstOrDefault(item => item.IsMarkdown);
+        if (firstPage != null)
+        {
+            if (!string.IsNullOrWhiteSpace(firstPage.FrontMatterTitle))
+            {
+                return firstPage.FrontMatterTitle;
+            }
+
+            if (!string.IsNullOrWhiteSpace(firstPage.Title))
+            {
+                return firstPage.Title;
+            }
+        }
+
+        return Path.GetFileNameWithoutExtension(outputPath);
+    }
+
+    // A page's table-of-contents label: its front-matter title, else its first level-1 heading,
+    // else the file name with a trailing ".md" removed.
     private static string TableOfContentsLabel(SimpleMarkdownToHtmlLayerItem page)
     {
+        if (!string.IsNullOrWhiteSpace(page.FrontMatterTitle))
+        {
+            return page.FrontMatterTitle;
+        }
+
         if (!string.IsNullOrWhiteSpace(page.Title))
         {
             return page.Title;

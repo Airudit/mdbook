@@ -48,6 +48,53 @@ public class SimpleMarkdownToHtmlTaskTests
         Assert.Contains("lang=\"en\"", html);
     }
 
+    // --- issue #29: per-page YAML front-matter title ---
+
+    [Fact]
+    public void Front_matter_title_overrides_the_file_name_title()
+    {
+        var html = RenderToHtml("guide.md", "---\ntitle: Custom Page\n---\n\n# Real Heading");
+        Assert.Contains("<title>Custom Page</title>", html);
+    }
+
+    [Fact]
+    public void Front_matter_block_is_not_rendered_in_the_body()
+    {
+        var html = RenderToHtml("guide.md", "---\ntitle: Custom Page\n---\n\nBody text.");
+        Assert.DoesNotContain("title: Custom Page", html);
+        Assert.Contains("Body text.", html);
+    }
+
+    [Fact]
+    public void A_mid_document_thematic_break_is_unaffected_by_front_matter()
+    {
+        var html = RenderToHtml("guide.md", "---\ntitle: T\n---\n\nBefore.\n\n---\n\nAfter.");
+        Assert.Contains("<title>T</title>", html);
+        Assert.Contains("<hr", html); // the mid-document --- stays a page break
+    }
+
+    [Fact]
+    public void A_page_without_front_matter_keeps_the_file_name_title()
+    {
+        var html = RenderToHtml("guide.md", "# Hello\n\nNo front matter.");
+        Assert.Contains("<title>guide</title>", html);
+    }
+
+    [Fact]
+    public void Unknown_front_matter_keys_are_ignored()
+    {
+        var html = RenderToHtml("guide.md", "---\ntitle: T\nfoo: bar\n---\n\nBody.");
+        Assert.Contains("<title>T</title>", html);
+        Assert.DoesNotContain("foo: bar", html);
+    }
+
+    [Fact]
+    public void A_quoted_front_matter_title_is_unquoted()
+    {
+        var html = RenderToHtml("guide.md", "---\ntitle: \"Quoted: Value\"\n---\n\nBody.");
+        Assert.Contains("<title>Quoted: Value</title>", html);
+    }
+
     [Fact]
     public void Local_markdown_links_are_rewritten_to_html()
     {

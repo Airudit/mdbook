@@ -569,6 +569,138 @@ public class OutputModeTests
         Assert.Contains("<article id=\"shared\"", html);
     }
 
+    // --- issue #29: --Title, the book-title fallback chain, and the .mdbook sidecar ---
+
+    [Fact]
+    public void Title_argument_sets_the_single_file_book_title()
+    {
+        using var dir = new TempTree(("a.md", "# Alpha"));
+        var single = Path.Combine(dir.Root, "book.html");
+        RunCli(Path.Combine(dir.Root, "a.md"), "--single-file", single, "--title", "My Book");
+        Assert.Contains("<title>My Book</title>", File.ReadAllText(single));
+    }
+
+    [Fact]
+    public void Single_file_book_title_falls_back_to_the_first_page_heading()
+    {
+        using var dir = new TempTree(("a.md", "# Alpha"), ("b.md", "# Beta"));
+        var single = Path.Combine(dir.Root, "book.html");
+        RunCli(Path.Combine(dir.Root, "a.md"), Path.Combine(dir.Root, "b.md"), "--single-file", single);
+        Assert.Contains("<title>Alpha</title>", File.ReadAllText(single));
+    }
+
+    [Fact]
+    public void Front_matter_title_labels_the_page_in_the_single_file_toc()
+    {
+        using var dir = new TempTree(("a.md", "---\ntitle: Custom Label\n---\n\n# Real Heading"));
+        var toc = TableOfContents(RenderSingleFile(dir, "all.html", Path.Combine(dir.Root, "a.md")));
+        Assert.Contains(">Custom Label</a>", toc);
+        Assert.DoesNotContain("Real Heading", toc);
+    }
+
+    [Fact]
+    public void Title_on_a_multi_page_side_run_warns()
+    {
+        using var dir = new TempTree(("a.md", "# A"), ("b.md", "# B"));
+        var error = RunCliCaptureError(dir.Root, "--title", "X");
+        Assert.Contains("applied to all 2 pages", error);
+    }
+
+    [Fact]
+    public void Title_on_a_single_page_run_does_not_warn()
+    {
+        using var dir = new TempTree(("a.md", "# A"));
+        var error = RunCliCaptureError(Path.Combine(dir.Root, "a.md"), "--title", "X");
+        Assert.DoesNotContain("applied to all", error);
+    }
+
+    [Fact]
+    public void A_book_without_a_sidecar_uses_the_english_toc_heading()
+    {
+        using var dir = new TempTree(("a.md", "# A"));
+        var single = Path.Combine(dir.Root, "book.html");
+        RunCli(Path.Combine(dir.Root, "a.md"), "--single-file", single);
+        Assert.Contains("<h2 class=\"toc-title\">Contents</h2>", File.ReadAllText(single));
+    }
+
+    [Fact]
+    public void Sidecar_front_matter_sets_the_book_title()
+    {
+        using var dir = new TempTree((".mdbook.md", "---\ntitle: Handbook\n---"), ("a.md", "# Alpha"));
+        var single = Path.Combine(dir.Root, "book.html");
+        RunCli(Path.Combine(dir.Root, ".mdbook.md"), Path.Combine(dir.Root, "a.md"), "--single-file", single);
+        Assert.Contains("<title>Handbook</title>", File.ReadAllText(single));
+    }
+
+    [Fact]
+    public void Sidecar_body_becomes_the_book_introduction_before_the_toc()
+    {
+        using var dir = new TempTree(
+            (".mdbook.md", "---\ntitle: Handbook\n---\n\nIntro-marker."),
+            ("a.md", "# Alpha"));
+        var single = Path.Combine(dir.Root, "book.html");
+        RunCli(Path.Combine(dir.Root, ".mdbook.md"), Path.Combine(dir.Root, "a.md"), "--single-file", single);
+        var html = File.ReadAllText(single);
+        Assert.Contains("id=\"intro\"", html);
+        Assert.Contains("Intro-marker.", html);
+        // intro sits before the table of contents (book heading -> intro -> contents -> pages)
+        Assert.True(html.IndexOf("Intro-marker.", StringComparison.Ordinal) < html.IndexOf("<article id=list>", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Sidecar_is_not_rendered_or_listed_as_a_page()
+    {
+        using var dir = new TempTree((".mdbook.md", "---\ntitle: Handbook\n---"), ("a.md", "# Alpha"));
+        var single = Path.Combine(dir.Root, "book.html");
+        RunCli(Path.Combine(dir.Root, ".mdbook.md"), Path.Combine(dir.Root, "a.md"), "--single-file", single);
+        var toc = TableOfContents(File.ReadAllText(single));
+        Assert.Contains(">Alpha</a>", toc);
+        Assert.DoesNotContain("mdbook", toc);
+        Assert.False(File.Exists(Path.Combine(dir.Root, ".mdbook.md.html")));
+    }
+
+    [Fact]
+    public void Sidecar_lang_localizes_the_toc_heading()
+    {
+        using var dir = new TempTree((".mdbook.fr.md", "---\ntitle: Manuel\nlang: fr\n---"), ("a.fr.md", "# Alpha"));
+        var single = Path.Combine(dir.Root, "book.html");
+        RunCli(Path.Combine(dir.Root, ".mdbook.fr.md"), Path.Combine(dir.Root, "a.fr.md"), "--single-file", single);
+        Assert.Contains("<h2 class=\"toc-title\">Sommaire</h2>", File.ReadAllText(single));
+    }
+
+    [Fact]
+    public void A_sidecar_found_by_a_directory_scan_is_not_used_or_rendered()
+    {
+        using var dir = new TempTree(
+            ("book/.mdbook.md", "---\ntitle: Should Not Win\n---\n\nUnused intro."),
+            ("book/a.md", "# Alpha"));
+        var single = Path.Combine(dir.Root, "book.html");
+        RunCli(Path.Combine(dir.Root, "book"), "--single-file", single);
+        var html = File.ReadAllText(single);
+        Assert.DoesNotContain("Should Not Win", html);
+        Assert.DoesNotContain("Unused intro.", html);
+        Assert.Contains("<title>Alpha</title>", html);
+        Assert.False(File.Exists(Path.Combine(dir.Root, "book", ".mdbook.md.html")));
+    }
+
+    [Fact]
+    public void ByLang_uses_the_matching_language_sidecar_for_each_book()
+    {
+        using var dir = new TempTree(
+            (".mdbook.en.md", "---\ntitle: Handbook\n---"),
+            (".mdbook.fr.md", "---\ntitle: Manuel\n---"),
+            ("a.en.md", "# Alpha"),
+            ("b.fr.md", "# Beta"));
+        RunCli(
+            Path.Combine(dir.Root, ".mdbook.en.md"),
+            Path.Combine(dir.Root, ".mdbook.fr.md"),
+            Path.Combine(dir.Root, "a.en.md"),
+            Path.Combine(dir.Root, "b.fr.md"),
+            "--single-file", Path.Combine(dir.Root, "book.{lang}.html"), "--bylang");
+        Assert.Contains("<title>Handbook</title>", File.ReadAllText(Path.Combine(dir.Root, "book.en.html")));
+        Assert.Contains("<title>Manuel</title>", File.ReadAllText(Path.Combine(dir.Root, "book.fr.html")));
+    }
+
     private static int CountOccurrences(string haystack, string needle)
     {
         var count = 0;

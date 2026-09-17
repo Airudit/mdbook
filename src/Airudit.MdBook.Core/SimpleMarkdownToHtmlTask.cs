@@ -3,6 +3,7 @@ namespace Airudit.MdBook.Core
 {
     using Airudit.MdBook.Core.Internals;
     using Markdig;
+    using Markdig.Extensions.Yaml;
     using Markdig.Renderers;
     using Markdig.Syntax;
     using Markdig.Syntax.Inlines;
@@ -102,6 +103,7 @@ namespace Airudit.MdBook.Core
 
             // prepare pipeline
             var pipelineBuilder = new MarkdownPipelineBuilder()
+                .UseYamlFrontMatter()
                 .UseAutoIdentifiers()
                 .UseAutoLinks()
                 .UsePipeTables()
@@ -150,9 +152,31 @@ namespace Airudit.MdBook.Core
             Action<string>? diagramLog = this.layer.Verbose ? (message => interactor?.Out?.WriteLine(message)) : null;
             var diagramProvider = DiagramProviderFactory.Create(this.layer.Diagrams, this.layer.KrokiUrl, diagramLog);
 
+            // --Title names one page's <title>; on a multi-page side/export run it stamps the same
+            // title on every page. Unusual, so warn once. The --Single-File book <title> is a
+            // separate, intended use of --Title and never warns.
+            if (this.layer.Title != null && (this.layer.SideBySide || this.layer.Exports.Count > 0))
+            {
+                var pageCount = this.layer.Items.Count(candidate => candidate.IsMarkdown);
+                if (pageCount > 1)
+                {
+                    interactor?.ErrorOut?.WriteLine("--Title \"" + this.layer.Title + "\" is applied to all " + pageCount + " pages; it is meant mainly for single-page or --Single-File output. ");
+                }
+            }
+
             foreach (var item in this.layer.Items.ToArray()) // we need to change the collection while enumerating it
             {
                 await this.ProcessFileMarkdownAsync(context, item, diagramProvider, diagramLog, cancellationToken).ConfigureAwait(false);
+            }
+
+            // Book-metadata sidecars feed only the combined output, so process them for their
+            // front-matter and intro body only when a single file is being built.
+            if (this.layer.SingleFile != null)
+            {
+                foreach (var sidecar in this.layer.Sidecars)
+                {
+                    await this.ProcessFileMarkdownAsync(context, sidecar, diagramProvider, diagramLog, cancellationToken).ConfigureAwait(false);
+                }
             }
 
             this.EmitDiagramWarnings(context);
@@ -307,6 +331,29 @@ namespace Airudit.MdBook.Core
             // uses it as the page label instead of the bare file name.
             item.Title = ExtractFirstHeadingTitle(dom);
 
+            // A top-of-file YAML front-matter `title:` names the page explicitly, overriding both
+            // the file-name-derived page <title> and the first-heading TOC label. Kept on its own
+            // field (not folded into Title) so the book-title fallback chain can still tell a
+            // front-matter title apart from a first heading.
+            item.FrontMatterTitle = ExtractFrontMatterTitle(dom);
+
+            // A sidecar's front-matter `lang:` sets the book language authoritatively; otherwise its
+            // language stays the one inferred from the file name's ".xx" segment above.
+            if (item.IsSidecar)
+            {
+                var frontMatterLang = FrontMatterScalar(dom, "lang");
+                if (frontMatterLang != null)
+                {
+                    try
+                    {
+                        item.Lang = new CultureInfo(frontMatterLang);
+                    }
+                    catch (CultureNotFoundException)
+                    {
+                    }
+                }
+            }
+
             // Pre-render every diagram fence to SVG (async, in parallel) before Markdig's synchronous
             // renderer runs; the renderer then just inlines the cached SVGs (issue #5).
             await DiagramPrerenderer.RenderAsync(dom, diagramProvider, this.layer.ColorScheme, this.layer.DiagramSvgs, this.layer.DiagramWarnings, diagramLog, cancellationToken).ConfigureAwait(false);
@@ -342,7 +389,7 @@ namespace Airudit.MdBook.Core
 
                 if ("PageTitle".Equals(key, StringComparison.Ordinal))
                 {
-                    return WebUtility.HtmlEncode(title);
+                    return WebUtility.HtmlEncode(this.layer.Title ?? item.FrontMatterTitle ?? title);
                 }
                 else if ("Contents".Equals(key, StringComparison.Ordinal))
                 {
@@ -373,8 +420,9 @@ namespace Airudit.MdBook.Core
             // keep the full page in memory so it can be exported even when not written in place
             item.RenderedPage = page;
 
-            // write the in-place side-by-side HTML file, unless suppressed (issue #9)
-            if (this.layer.SideBySide)
+            // write the in-place side-by-side HTML file, unless suppressed (issue #9). A sidecar is
+            // never written in place — it is book metadata, not a page.
+            if (this.layer.SideBySide && !item.IsSidecar)
             {
                 using (var targetStream = new FileStream(item.TargetFile.FullName, FileMode.Create, FileAccess.Write, FileShare.None))
                 {
@@ -631,6 +679,62 @@ namespace Airudit.MdBook.Core
             var block = document[0];
             document.RemoveAt(0);
             return block;
+        }
+
+        // The `title:` value of a top-of-file YAML front-matter block, or null when the document
+        // has no front-matter or no such key. Front-matter is only ever the document's first block
+        // (Markdig accepts it only at the very start), so an included partial's own front-matter is
+        // never read here. v1 reads a single key; unknown keys are ignored (forward-compatible).
+        private static string? ExtractFrontMatterTitle(MarkdownDocument dom)
+        {
+            return FrontMatterScalar(dom, "title");
+        }
+
+        // The value of a top-level scalar key in the document's YAML front-matter block, or null when
+        // there is no front-matter or no such key. A minimal single-line reader (v1 needs only
+        // "title" and "lang"), so the tool keeps no YAML-parser dependency; indented (nested) and
+        // unknown keys are ignored.
+        private static string? FrontMatterScalar(MarkdownDocument dom, string key)
+        {
+            if (dom.Count == 0 || dom[0] is not YamlFrontMatterBlock yaml)
+            {
+                return null;
+            }
+
+            var lines = yaml.Lines.Lines;
+            for (var i = 0; i < yaml.Lines.Count; i++)
+            {
+                var line = lines[i].Slice.ToString();
+                if (line.Length == 0 || char.IsWhiteSpace(line[0]))
+                {
+                    continue;
+                }
+
+                var colon = line.IndexOf(':');
+                if (colon <= 0 || !string.Equals(line.Substring(0, colon), key, StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                var value = UnquoteYamlScalar(line.Substring(colon + 1).Trim());
+                return value.Length > 0 ? value : null;
+            }
+
+            return null;
+        }
+
+        // Strips one layer of matching single or double quotes from a YAML scalar, leaving a bare
+        // value untouched. Enough for the `title:` line v1 reads; not a general YAML unescaper.
+        private static string UnquoteYamlScalar(string value)
+        {
+            if (value.Length >= 2
+                && (value[0] == '"' || value[0] == '\'')
+                && value[^1] == value[0])
+            {
+                return value.Substring(1, value.Length - 2);
+            }
+
+            return value;
         }
 
         // The text of the document's first level-1 heading, or null when there is none.
