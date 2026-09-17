@@ -22,6 +22,50 @@ On its own, `--Single-File` writes only the combined file — the in-place `X.md
 are suppressed. Add `--Side` to keep those too (see *Operation modes* in
 [Command-line usage](cli-usage.en.md)).
 
+The book's title and cover
+----------------------------------------------------------------
+
+The combined document has one `<title>`, and it can carry a title and an introduction of its
+own — separate from any single page. The `<title>` is resolved from the first of these that
+is set:
+
+1. `--Title <str>` on the command line;
+2. the **sidecar** title (below);
+3. the first page's front-matter `title:`;
+4. the first page's first heading;
+5. the output file name.
+
+### The `.mdbook.<lang>.md` sidecar
+
+Name a file `.mdbook.md` — or `.mdbook.<lang>.md` per language — among the inputs to give the
+book its own metadata and cover:
+
+```markdown
+---
+title: EPIIC Handbook
+lang: en
+---
+
+Welcome. Start with [installation](install.en.md), then [licensing](licensing.en.md).
+```
+
+- Its front-matter `title:` sets the book `<title>` (step 2 above) and `lang:` sets the
+  book's language, which also localizes the table-of-contents heading.
+- If it has **body text**, that body is rendered as the book's **introduction**, placed above
+  the table of contents — a natural home for a curated list of the pages that matter, with
+  links that resolve to in-file anchors like any other cross-page link.
+- The sidecar is **not a page**: it is never rendered in place, exported, or listed in the
+  table of contents, and a `.mdbook.*.md` found by scanning a folder is ignored (name it
+  explicitly on the command line to use it).
+- Under `--ByLang`, each book uses the sidecar whose language matches, falling back to a
+  language-neutral `.mdbook.md`. Give one per language for a localized cover:
+
+```bash
+mdbook --Single-File book.html --ByLang .mdbook.*.md .
+```
+
+writes `book.en.html` and `book.fr.html`, each with its own title and introduction.
+
 Page order
 ----------------------------------------------------------------
 
@@ -40,9 +84,12 @@ Table of contents
 ----------------------------------------------------------------
 
 The combined file opens with a table of contents that mirrors the source folder structure:
-pages are nested under their folders, with the common leading folder stripped. Each page is
-labelled by its **title** — its first level-1 heading (`# …`), falling back to the file name
-without `.md` when a page has no heading. Folders appear as plain labels.
+pages are nested under their folders, with the common leading folder stripped. The list is
+headed by a localized label (`Contents`, `Sommaire`, …) chosen from the book's language,
+defaulting to English for a mixed-language book with no stated language. Each page is
+labelled by its **title** — its front-matter `title:` if it has one, otherwise its first
+level-1 heading (`# …`), falling back to the file name without `.md`. Folders appear as plain
+labels.
 
 In-file links
 ----------------------------------------------------------------
@@ -121,3 +168,6 @@ Known limitations
   language is absent from the other languages' books; there is no automatic fallback to
   another language yet. Tracked in
   [issue #24](https://github.com/Airudit/mdbook/issues/24).
+- **The `.mdbook` sidecar affects the combined output only.** In the in-place and `--Export`
+  modes it is ignored — no book title or introduction there; use `--Title` and per-page
+  front-matter for titles in those modes.

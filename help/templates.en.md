@@ -42,13 +42,17 @@ composing content from several Markdown files, see
 
 Known variables:
 
-- `{{{PageTitle}}}` — the page title, taken from the file name with any language
-  suffix removed (`guide.en.md` → "guide"). HTML-escaped.
+- `{{{PageTitle}}}` — the page title. By default the file name with any language
+  suffix removed (`guide.en.md` → "guide"); overridden by a page's front-matter
+  `title:` key, by `--Title`, or — for a combined book — by the `.mdbook` sidecar
+  title. See [Command-line usage](cli-usage.en.md) and
+  [Single-file books](single-file.en.md). HTML-escaped.
 - `{{{Contents}}}` — the rendered Markdown, as raw HTML wrapped in an
   `<article>`. Not escaped.
 - `{{{Lang}}}` — the page language code, suitable for `<html lang="…">`. Taken
   from the file-name suffix (`guide.en.md` → `en`); defaults to `en` when there
-  is no suffix.
+  is no suffix. For a combined book it may instead come from the `.mdbook`
+  sidecar's `lang:` or the pages' majority language.
 - `{{{Info}}}` — an automatically generated notice stating the file was produced
   by the tool and that manual edits will be lost on the next run.
 - `{{{Copyright}}}` — the string passed with `--Copyright`. HTML-escaped.

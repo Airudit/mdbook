@@ -90,6 +90,12 @@ Option names are case-insensitive (`--export` and `--Export` are equal).
   [Templates and placeholders](templates.en.md).
 - `--Copyright <str>` — a copyright notice made available to the template as
   `{{{Copyright}}}`.
+- `--Title <str>` — an explicit title, overriding the derived one in **every** mode. With
+  `--Single-File` it names the book (its `{{{PageTitle}}}`); in the in-place and export
+  modes it overrides each page's `{{{PageTitle}}}`. Applied to a **multi-page** in-place or
+  export run it stamps the same title on every page (a warning is printed), so it is meant
+  mainly for single(-file) output. No environment-variable fallback — the flag is the only
+  source. See *Titles and front matter* below.
 - `--Embed` — inline the local images referenced by `![alt](path)` into the HTML as
   `data:` URIs, so the output stays self-contained once moved away from its source
   folder. Off by default, but **on automatically with `--Single-File`** (an external
@@ -125,6 +131,44 @@ Built-in templates:
 --Template builtin:default.light.html
 --Template builtin:default.dark.html
 ```
+
+Titles and front matter
+----------------------------------------------------------------
+
+By default a page's title is its file name (minus any `.xx` language segment), and a combined
+book's title is the output file name. Three things override that.
+
+### A page's own title
+
+Begin a Markdown file with a YAML **front-matter** block to name it explicitly:
+
+```markdown
+---
+title: Installation guide
+---
+
+# ...
+```
+
+The block is recognized only at the very top of the file — so a `---` later in the document
+is still a page break, not front matter — and it is removed from the rendered body. Its
+`title:` sets both the page `{{{PageTitle}}}` and, in a combined book, the page's
+table-of-contents label. Only `title` is read for now; unknown keys are ignored.
+
+### `--Title`
+
+`--Title <str>` overrides the title from the command line, in every mode (see *Options*).
+
+### A book's metadata and cover: `.mdbook.<lang>.md`
+
+A file named `.mdbook.md` — or `.mdbook.<lang>.md` per language (`.mdbook.en.md`,
+`.mdbook.fr.md`) — is a **book-metadata sidecar**, not a page. Name it among the inputs and
+`mdbook` reads its front-matter as the book's metadata (`title`, `lang`) and, if it has body
+text, renders that body as the book's **introduction**, placed above the table of contents.
+The sidecar is never rendered, exported, or listed as a page, and one found by scanning a
+folder is ignored (name it explicitly to use it). It applies to the combined `--Single-File`
+output only; for the full behaviour and the book-title fallback chain, see
+[Single-file books](single-file.en.md).
 
 Environment variables
 ----------------------------------------------------------------
@@ -186,6 +230,17 @@ Build one combined file per language from a multilingual folder:
 ```bash
 mdbook docs/ --Single-File docs.{lang}.html --ByLang
 ```
+
+Build one book per language, each with its own cover — title and introduction — from a
+`.mdbook.<lang>.md` sidecar. The shell expands `.mdbook.*.md` to the per-language sidecars and
+`.` supplies the pages, so a generic build script never has to list the files:
+
+```bash
+mdbook --Single-File book.html --ByLang .mdbook.*.md .
+```
+
+Each sidecar (`.mdbook.en.md`, `.mdbook.fr.md`) sets its book's title and intro; `--ByLang`
+writes `book.en.html` and `book.fr.html`. See [Single-file books](single-file.en.md).
 
 Render with the dark built-in template:
 
