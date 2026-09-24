@@ -144,17 +144,30 @@ namespace Airudit.MdBook.Core
                 throw new ArgumentNullException(nameof(context));
             }
 
-            this.RemoveIncludedPartials();
-
             // The diagram provider and its --verbose logger live for the whole run; the pre-render
             // pass (below, per page) fills the shared SVG cache the Markdig renderer reads.
             var interactor = context.GetSingleLayer<CommandLineLayer>();
             Action<string>? diagramLog = this.layer.Verbose ? (message => interactor?.Out?.WriteLine(message)) : null;
             var diagramProvider = DiagramProviderFactory.Create(this.layer.Diagrams, this.layer.KrokiUrl, diagramLog);
 
+            // Process every .mdbook file first so its manifest (title, lang, priority/exclude/toc) is
+            // parsed in every output mode — `exclude` must drop pages before any page is rendered,
+            // written in place or exported (issue #30). Its rendered intro body is only consumed by
+            // the combined single-file output; in the other modes it is parsed but discarded (a
+            // .mdbook file is never written or exported as a page).
+            foreach (var manifest in this.layer.Manifests)
+            {
+                await this.ProcessFileMarkdownAsync(context, manifest, diagramProvider, diagramLog, cancellationToken).ConfigureAwait(false);
+            }
+
+            this.ApplyManifestExclusions(context);
+
+            this.RemoveIncludedPartials();
+
             // --Title names one page's <title>; on a multi-page side/export run it stamps the same
             // title on every page. Unusual, so warn once. The --Single-File book <title> is a
-            // separate, intended use of --Title and never warns.
+            // separate, intended use of --Title and never warns. Counted after exclusions so the
+            // number reflects the pages that will actually render.
             if (this.layer.Title != null && (this.layer.SideBySide || this.layer.Exports.Count > 0))
             {
                 var pageCount = this.layer.Items.Count(candidate => candidate.IsMarkdown);
@@ -169,16 +182,66 @@ namespace Airudit.MdBook.Core
                 await this.ProcessFileMarkdownAsync(context, item, diagramProvider, diagramLog, cancellationToken).ConfigureAwait(false);
             }
 
-            // Process every .mdbook file so its manifest (title, lang, priority/exclude/toc) is parsed
-            // in every output mode — `exclude` must act even without --Single-File (issue #30). Its
-            // rendered intro body is only consumed by the combined single-file output; in the other
-            // modes it is parsed but discarded (a .mdbook file is never written or exported as a page).
-            foreach (var manifest in this.layer.Manifests)
+            this.EmitDiagramWarnings(context);
+        }
+
+        // Drops pages matched by any .mdbook file's `exclude` list from the page set, in every output
+        // mode (issue #30). Each entry is resolved relative to its own .mdbook file's directory (not
+        // the working directory), and a page is removed if any manifest excludes it.
+        private void ApplyManifestExclusions(PackageContext context)
+        {
+            if (this.layer.Manifests.Count == 0)
             {
-                await this.ProcessFileMarkdownAsync(context, manifest, diagramProvider, diagramLog, cancellationToken).ConfigureAwait(false);
+                return;
             }
 
-            this.EmitDiagramWarnings(context);
+            var rules = new List<(string BaseDirectory, string Entry)>();
+            foreach (var manifest in this.layer.Manifests)
+            {
+                var config = manifest.Manifest;
+                if (config == null)
+                {
+                    continue;
+                }
+
+                var baseDirectory = manifest.SourceFile.DirectoryName ?? ".";
+                foreach (var entry in config.Exclude)
+                {
+                    rules.Add((baseDirectory, entry));
+                }
+            }
+
+            if (rules.Count == 0)
+            {
+                return;
+            }
+
+            var removed = 0;
+            this.layer.Items.RemoveAll(item =>
+            {
+                if (!item.IsMarkdown)
+                {
+                    return false;
+                }
+
+                foreach (var (baseDirectory, entry) in rules)
+                {
+                    var relativePath = Path.GetRelativePath(baseDirectory, item.SourceFile.FullName).Replace('\\', '/');
+                    if (ManifestMatcher.Matches(entry, relativePath))
+                    {
+                        removed++;
+                        return true;
+                    }
+                }
+
+                return false;
+            });
+
+            if (removed > 0)
+            {
+                var interactor = context.GetSingleLayer<CommandLineLayer>();
+                interactor?.Out?.WriteLine("Excluded " + removed + (removed == 1 ? " page" : " pages") + " via the .mdbook manifest. ");
+            }
         }
 
         // Reports diagram fences left unrendered during the run, once (issue #5): a setup hint when no

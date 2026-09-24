@@ -683,6 +683,85 @@ public class OutputModeTests
         Assert.False(File.Exists(Path.Combine(dir.Root, "book", ".mdbook.md.html")));
     }
 
+    // --- issue #30: the manifest `exclude` list drops pages in every output mode ---
+
+    [Fact]
+    public void Manifest_exclude_drops_pages_from_the_single_file_book()
+    {
+        using var dir = new TempTree(
+            ("help/.mdbook.md", "---\nexclude: [secret.md, drafts/]\n---"),
+            ("help/README.md", "# Readme"),
+            ("help/keep.md", "# Keep me"),
+            ("help/secret.md", "# Secret"),
+            ("help/drafts/wip.md", "# Work in progress"));
+        var single = Path.Combine(dir.Root, "book.html");
+        RunCli(Path.Combine(dir.Root, "help"), Path.Combine(dir.Root, "help", ".mdbook.md"), "--single-file", single);
+
+        var html = File.ReadAllText(single);
+        Assert.Contains("Keep me", html);
+        Assert.DoesNotContain("Secret", html);
+        Assert.DoesNotContain("Work in progress", html);
+    }
+
+    [Fact]
+    public void Manifest_exclude_drops_pages_from_the_export()
+    {
+        using var dir = new TempTree(
+            ("help/.mdbook.md", "---\nexclude:\n  - secret.md\n---"),
+            ("help/README.md", "# Readme"),
+            ("help/secret.md", "# Secret"));
+        var outDir = Path.Combine(dir.Root, "out");
+        RunCli(Path.Combine(dir.Root, "help"), Path.Combine(dir.Root, "help", ".mdbook.md"), "--export", outDir);
+
+        Assert.True(File.Exists(Path.Combine(outDir, "help", "README.md.html")));
+        Assert.False(File.Exists(Path.Combine(outDir, "help", "secret.md.html")));
+    }
+
+    [Fact]
+    public void Manifest_exclude_suppresses_the_in_place_file()
+    {
+        using var dir = new TempTree(
+            (".mdbook.md", "---\nexclude: [secret.md]\n---"),
+            ("keep.md", "# Keep"),
+            ("secret.md", "# Secret"));
+        RunCli(Path.Combine(dir.Root, "keep.md"), Path.Combine(dir.Root, "secret.md"), Path.Combine(dir.Root, ".mdbook.md"));
+
+        Assert.True(File.Exists(Path.Combine(dir.Root, "keep.md.html")));
+        Assert.False(File.Exists(Path.Combine(dir.Root, "secret.md.html")));
+    }
+
+    [Fact]
+    public void Manifest_exclude_matches_with_the_language_and_extension_omitted()
+    {
+        using var dir = new TempTree(
+            (".mdbook.md", "---\nexclude: [secret]\n---"),
+            ("keep.en.md", "# Keep"),
+            ("secret.en-US.md", "# Secret"));
+        var single = Path.Combine(dir.Root, "book.html");
+        RunCli(Path.Combine(dir.Root, "keep.en.md"), Path.Combine(dir.Root, "secret.en-US.md"), Path.Combine(dir.Root, ".mdbook.md"), "--single-file", single);
+
+        var html = File.ReadAllText(single);
+        Assert.Contains("Keep", html);
+        Assert.DoesNotContain("Secret", html);
+    }
+
+    [Fact]
+    public void Manifest_exclude_resolves_relative_to_the_mdbook_file_directory()
+    {
+        // The .mdbook file sits at the root while the pages live under help/, so the entry must
+        // carry the "help/" prefix — resolution is relative to the manifest, not the pages.
+        using var dir = new TempTree(
+            (".mdbook.md", "---\nexclude: [help/secret.md]\n---"),
+            ("help/keep.md", "# Keep"),
+            ("help/secret.md", "# Secret"));
+        var single = Path.Combine(dir.Root, "book.html");
+        RunCli(Path.Combine(dir.Root, "help"), Path.Combine(dir.Root, ".mdbook.md"), "--single-file", single);
+
+        var html = File.ReadAllText(single);
+        Assert.Contains("Keep", html);
+        Assert.DoesNotContain("Secret", html);
+    }
+
     [Fact]
     public void ByLang_uses_the_matching_language_manifest_for_each_book()
     {
