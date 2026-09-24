@@ -135,6 +135,17 @@ public class CombineMarkdownToHtmlTask : ITask
     // outputPath. Shared by the whole-book path and the per-language --ByLang path (issue #22).
     private void CombineInto(PackageContext context, SimpleMarkdownToHtmlLayer layer, IReadOnlyList<SimpleMarkdownToHtmlLayerItem> items, string outputPath, string documentLang = null)
     {
+        // The book-metadata file (.mdbook[.lang].md) for this book, if one was supplied: source of
+        // the book title, language, optional introduction, and the ordering/TOC manifest.
+        var manifest = ResolveManifest(layer, documentLang);
+
+        // Compute the page order the manifest dictates (issue #30): the `priority` shortlist first
+        // (in listed order), then the remaining pages by ascending per-page `order` (a stable sort,
+        // so unnumbered pages keep their existing sequence); `exclusive` ships only the priority
+        // pages. With no manifest this is a stable `order` sort, and with no orders either it is the
+        // pages exactly as assembled.
+        var ordered = OrderPages(items, manifest);
+
         // Assign each page a stable, path-based anchor slug (e.g. "guide/intro.md" ->
         // "guide-intro"), stored on the item so the table of contents, images and per-language
         // splitting can reuse it. Cross-page links are then resolved to these in-file anchors
@@ -142,13 +153,8 @@ public class CombineMarkdownToHtmlTask : ITask
         // positional) so adding or reordering a page does not shift another page's anchor.
         var slugBySource = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         var usedSlugs = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var page in items)
+        foreach (var page in ordered)
         {
-            if (!page.IsMarkdown)
-            {
-                continue;
-            }
-
             page.Anchor = MakeUniqueSlug(page, usedSlugs);
             slugBySource[page.SourceFile.FullName] = page.Anchor;
         }
@@ -156,13 +162,8 @@ public class CombineMarkdownToHtmlTask : ITask
         var langs = new Dictionary<string, int>();
         using var contents = new StringWriter();
 
-        foreach (var page in items)
+        foreach (var page in ordered)
         {
-            if (!page.IsMarkdown)
-            {
-                continue;
-            }
-
             var elementId = page.Anchor;
 
             // Tag the section with its own language so screen readers, hyphenation and
@@ -193,10 +194,6 @@ public class CombineMarkdownToHtmlTask : ITask
             contents.WriteLine();
         }
         
-        // The book-metadata file (.mdbook[.lang].md) for this book, if one was supplied: source
-        // of the book title, the book language, and an optional introduction.
-        var manifest = ResolveManifest(layer, documentLang);
-
         // --ByLang passes the book's language; otherwise take the .mdbook file's, then the pages' majority.
         var langName = documentLang
             ?? manifest?.Lang?.Name
@@ -207,7 +204,7 @@ public class CombineMarkdownToHtmlTask : ITask
         using var list = new StringWriter();
         list.WriteLine("<article id=toc>");
         list.WriteLine("<h2 class=\"toc-title\">" + HttpUtility.HtmlEncode(TableOfContentsHeading(lang)) + "</h2>");
-        WriteTableOfContents(list, items);
+        WriteTableOfContents(list, ordered);
         list.WriteLine("</article>");
         list.WriteLine();
         list.WriteLine();
@@ -234,7 +231,7 @@ public class CombineMarkdownToHtmlTask : ITask
         // - {{{Contents}}}   the markdown-converted HTML part
         // - {{{Lang}}}       the page's lang
         // - {{{Info}}}       a information string
-        var title = ResolveBookTitle(layer, manifest, items, outputPath);
+        var title = ResolveBookTitle(layer, manifest, ordered, outputPath);
         var pageContents = replacer.Replace(layer.Template, new MatchEvaluator(match =>
         {
             var key = match.Groups[1].Value;
@@ -290,7 +287,7 @@ public class CombineMarkdownToHtmlTask : ITask
 
         // Confirm the combined file was written, mirroring the "Exporting to:" line --Export
         // prints. This is a normal (non-verbose) summary; the per-page trace stays behind -v.
-        var pageCount = items.Count(item => item.IsMarkdown);
+        var pageCount = ordered.Count;
         var interactor = context.GetSingleLayer<CommandLineLayer>();
         interactor?.Out?.WriteLine("Combined " + pageCount + (pageCount == 1 ? " page into " : " pages into ") + Path.GetFullPath(path));
     }
@@ -409,6 +406,54 @@ public class CombineMarkdownToHtmlTask : ITask
         }
 
         list.WriteLine("</ul>");
+    }
+
+    // Orders the book's pages per the manifest (issue #30): the `priority` entries first, matched
+    // in listed order against each page's path relative to the .mdbook file's directory; then the
+    // remaining pages by ascending per-page `order` (a stable sort, so an unnumbered page — or, with
+    // no manifest and no orders, every page — keeps the sequence in which it was assembled). With
+    // `exclusive`, only the priority pages are returned.
+    private static List<SimpleMarkdownToHtmlLayerItem> OrderPages(IEnumerable<SimpleMarkdownToHtmlLayerItem> items, SimpleMarkdownToHtmlLayerItem? manifest)
+    {
+        var pages = items.Where(item => item.IsMarkdown).ToList();
+        var config = manifest?.Manifest;
+
+        var priority = new List<SimpleMarkdownToHtmlLayerItem>();
+        var placed = new HashSet<SimpleMarkdownToHtmlLayerItem>();
+        var baseDirectory = manifest?.SourceFile.DirectoryName;
+        if (config != null && config.Priority.Count > 0 && baseDirectory != null)
+        {
+            foreach (var entry in config.Priority)
+            {
+                foreach (var page in pages)
+                {
+                    if (placed.Contains(page))
+                    {
+                        continue;
+                    }
+
+                    var relativePath = Path.GetRelativePath(baseDirectory, page.SourceFile.FullName).Replace('\\', '/');
+                    if (ManifestMatcher.Matches(entry, relativePath))
+                    {
+                        priority.Add(page);
+                        placed.Add(page);
+                    }
+                }
+            }
+        }
+
+        if (config?.Exclusive == true)
+        {
+            return priority;
+        }
+
+        var rest = pages
+            .Where(page => !placed.Contains(page))
+            .OrderBy(page => page.Order ?? int.MaxValue)
+            .ToList();
+
+        priority.AddRange(rest);
+        return priority;
     }
 
     // Picks the .mdbook file that applies to this book: the one whose language matches, else a

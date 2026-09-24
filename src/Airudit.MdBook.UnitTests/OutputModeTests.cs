@@ -683,6 +683,87 @@ public class OutputModeTests
         Assert.False(File.Exists(Path.Combine(dir.Root, "book", ".mdbook.md.html")));
     }
 
+    // --- issue #30: per-page `order` and the manifest `priority` list order the book ---
+
+    [Fact]
+    public void Per_page_order_sorts_the_pages_ascending()
+    {
+        using var dir = new TempTree(
+            ("a.md", "---\norder: 30\n---\n# Alpha"),
+            ("b.md", "---\norder: 10\n---\n# Beta"),
+            ("c.md", "---\norder: 20\n---\n# Gamma"));
+        var single = Path.Combine(dir.Root, "book.html");
+        RunCli(Path.Combine(dir.Root, "a.md"), Path.Combine(dir.Root, "b.md"), Path.Combine(dir.Root, "c.md"), "--single-file", single);
+
+        var html = File.ReadAllText(single);
+        Assert.True(html.IndexOf("Beta", StringComparison.Ordinal) < html.IndexOf("Gamma", StringComparison.Ordinal));
+        Assert.True(html.IndexOf("Gamma", StringComparison.Ordinal) < html.IndexOf("Alpha", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void An_unnumbered_page_sorts_after_numbered_pages()
+    {
+        using var dir = new TempTree(
+            ("a.md", "---\norder: 20\n---\n# Alpha"),
+            ("b.md", "# Beta"),
+            ("c.md", "---\norder: 10\n---\n# Gamma"));
+        var single = Path.Combine(dir.Root, "book.html");
+        RunCli(Path.Combine(dir.Root, "a.md"), Path.Combine(dir.Root, "b.md"), Path.Combine(dir.Root, "c.md"), "--single-file", single);
+
+        var html = File.ReadAllText(single);
+        Assert.True(html.IndexOf("Gamma", StringComparison.Ordinal) < html.IndexOf("Alpha", StringComparison.Ordinal));
+        Assert.True(html.IndexOf("Alpha", StringComparison.Ordinal) < html.IndexOf("Beta", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Manifest_priority_places_pages_first_in_listed_order()
+    {
+        using var dir = new TempTree(
+            (".mdbook.md", "---\npriority: [c, a]\n---"),
+            ("a.md", "# Alpha"),
+            ("b.md", "# Beta"),
+            ("c.md", "# Gamma"));
+        var single = Path.Combine(dir.Root, "book.html");
+        RunCli(Path.Combine(dir.Root, "a.md"), Path.Combine(dir.Root, "b.md"), Path.Combine(dir.Root, "c.md"), Path.Combine(dir.Root, ".mdbook.md"), "--single-file", single);
+
+        var html = File.ReadAllText(single);
+        Assert.True(html.IndexOf("Gamma", StringComparison.Ordinal) < html.IndexOf("Alpha", StringComparison.Ordinal));
+        Assert.True(html.IndexOf("Alpha", StringComparison.Ordinal) < html.IndexOf("Beta", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Manifest_exclusive_ships_only_the_priority_pages()
+    {
+        using var dir = new TempTree(
+            (".mdbook.md", "---\npriority: [a]\nexclusive: yes\n---"),
+            ("a.md", "# Alpha"),
+            ("b.md", "# Beta"),
+            ("c.md", "# Gamma"));
+        var single = Path.Combine(dir.Root, "book.html");
+        RunCli(Path.Combine(dir.Root, "a.md"), Path.Combine(dir.Root, "b.md"), Path.Combine(dir.Root, "c.md"), Path.Combine(dir.Root, ".mdbook.md"), "--single-file", single);
+
+        var html = File.ReadAllText(single);
+        Assert.Contains("Alpha", html);
+        Assert.DoesNotContain("Beta", html);
+        Assert.DoesNotContain("Gamma", html);
+    }
+
+    [Fact]
+    public void Manifest_priority_leads_and_the_rest_follow_by_order()
+    {
+        using var dir = new TempTree(
+            (".mdbook.md", "---\npriority: [c]\n---"),
+            ("a.md", "---\norder: 5\n---\n# Alpha"),
+            ("b.md", "---\norder: 1\n---\n# Beta"),
+            ("c.md", "# Gamma"));
+        var single = Path.Combine(dir.Root, "book.html");
+        RunCli(Path.Combine(dir.Root, "a.md"), Path.Combine(dir.Root, "b.md"), Path.Combine(dir.Root, "c.md"), Path.Combine(dir.Root, ".mdbook.md"), "--single-file", single);
+
+        var html = File.ReadAllText(single);
+        Assert.True(html.IndexOf("Gamma", StringComparison.Ordinal) < html.IndexOf("Beta", StringComparison.Ordinal));
+        Assert.True(html.IndexOf("Beta", StringComparison.Ordinal) < html.IndexOf("Alpha", StringComparison.Ordinal));
+    }
+
     // --- issue #30: the manifest `exclude` list drops pages in every output mode ---
 
     [Fact]
