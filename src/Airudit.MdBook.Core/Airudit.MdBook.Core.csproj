@@ -38,6 +38,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="Airudit.MdBook.UnitTests" />
+  </ItemGroup>
+
+  <ItemGroup>
     <EmbeddedResource Include="res\default.light.html" />
     <None Remove="res\default.dark.html" />
     <EmbeddedResource Include="res\default.dark.html" />

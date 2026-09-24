@@ -169,14 +169,13 @@ namespace Airudit.MdBook.Core
                 await this.ProcessFileMarkdownAsync(context, item, diagramProvider, diagramLog, cancellationToken).ConfigureAwait(false);
             }
 
-            // Book-metadata manifests feed only the combined output, so process them for their
-            // front-matter and intro body only when a single file is being built.
-            if (this.layer.SingleFile != null)
+            // Process every .mdbook file so its manifest (title, lang, priority/exclude/toc) is parsed
+            // in every output mode — `exclude` must act even without --Single-File (issue #30). Its
+            // rendered intro body is only consumed by the combined single-file output; in the other
+            // modes it is parsed but discarded (a .mdbook file is never written or exported as a page).
+            foreach (var manifest in this.layer.Manifests)
             {
-                foreach (var manifest in this.layer.Manifests)
-                {
-                    await this.ProcessFileMarkdownAsync(context, manifest, diagramProvider, diagramLog, cancellationToken).ConfigureAwait(false);
-                }
+                await this.ProcessFileMarkdownAsync(context, manifest, diagramProvider, diagramLog, cancellationToken).ConfigureAwait(false);
             }
 
             this.EmitDiagramWarnings(context);
@@ -327,21 +326,32 @@ namespace Airudit.MdBook.Core
                     this.layer.Verbose ? (message => interactor?.Out?.WriteLine(message)) : null);
             }
 
+            // Read the top-of-file YAML front-matter once; every front-matter-derived field below
+            // comes from it (issues #29, #30).
+            var frontMatter = FrontMatter.FromDocument(dom);
+
             // Remember the page's first level-1 heading; the single-file table of contents
             // uses it as the page label instead of the bare file name.
             item.Title = ExtractFirstHeadingTitle(dom);
 
-            // A top-of-file YAML front-matter `title:` names the page explicitly, overriding both
-            // the file-name-derived page <title> and the first-heading TOC label. Kept on its own
-            // field (not folded into Title) so the book-title fallback chain can still tell a
-            // front-matter title apart from a first heading.
-            item.FrontMatterTitle = ExtractFrontMatterTitle(dom);
+            // A front-matter `title:` names the page explicitly, overriding both the file-name-derived
+            // page <title> and the first-heading TOC label. Kept on its own field (not folded into
+            // Title) so the book-title fallback chain can still tell a front-matter title apart from a
+            // first heading.
+            item.FrontMatterTitle = frontMatter.GetString("title");
 
-            // A .mdbook file's front-matter `lang:` sets the book language authoritatively; otherwise its
-            // language stays the one inferred from the file name's ".xx" segment above.
+            // A front-matter `order:` number sorts the page within the combined book (issue #30);
+            // it has no effect outside the single-file output, where no page sequence exists.
+            item.Order = frontMatter.GetInt("order");
+
+            // A .mdbook file carries the book's manifest (priority/exclude/toc settings) and its
+            // `lang:`, which sets the book language authoritatively; otherwise the language stays the
+            // one inferred from the file name's ".xx" segment above.
             if (item.IsManifest)
             {
-                var frontMatterLang = FrontMatterScalar(dom, "lang");
+                item.Manifest = DocManifest.FromFrontMatter(frontMatter);
+
+                var frontMatterLang = frontMatter.GetString("lang");
                 if (frontMatterLang != null)
                 {
                     try
@@ -679,62 +689,6 @@ namespace Airudit.MdBook.Core
             var block = document[0];
             document.RemoveAt(0);
             return block;
-        }
-
-        // The `title:` value of a top-of-file YAML front-matter block, or null when the document
-        // has no front-matter or no such key. Front-matter is only ever the document's first block
-        // (Markdig accepts it only at the very start), so an included partial's own front-matter is
-        // never read here. v1 reads a single key; unknown keys are ignored (forward-compatible).
-        private static string? ExtractFrontMatterTitle(MarkdownDocument dom)
-        {
-            return FrontMatterScalar(dom, "title");
-        }
-
-        // The value of a top-level scalar key in the document's YAML front-matter block, or null when
-        // there is no front-matter or no such key. A minimal single-line reader (v1 needs only
-        // "title" and "lang"), so the tool keeps no YAML-parser dependency; indented (nested) and
-        // unknown keys are ignored.
-        private static string? FrontMatterScalar(MarkdownDocument dom, string key)
-        {
-            if (dom.Count == 0 || dom[0] is not YamlFrontMatterBlock yaml)
-            {
-                return null;
-            }
-
-            var lines = yaml.Lines.Lines;
-            for (var i = 0; i < yaml.Lines.Count; i++)
-            {
-                var line = lines[i].Slice.ToString();
-                if (line.Length == 0 || char.IsWhiteSpace(line[0]))
-                {
-                    continue;
-                }
-
-                var colon = line.IndexOf(':');
-                if (colon <= 0 || !string.Equals(line.Substring(0, colon), key, StringComparison.Ordinal))
-                {
-                    continue;
-                }
-
-                var value = UnquoteYamlScalar(line.Substring(colon + 1).Trim());
-                return value.Length > 0 ? value : null;
-            }
-
-            return null;
-        }
-
-        // Strips one layer of matching single or double quotes from a YAML scalar, leaving a bare
-        // value untouched. Enough for the `title:` line v1 reads; not a general YAML unescaper.
-        private static string UnquoteYamlScalar(string value)
-        {
-            if (value.Length >= 2
-                && (value[0] == '"' || value[0] == '\'')
-                && value[^1] == value[0])
-            {
-                return value.Substring(1, value.Length - 2);
-            }
-
-            return value;
         }
 
         // The text of the document's first level-1 heading, or null when there is none.

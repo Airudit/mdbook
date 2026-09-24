@@ -21,12 +21,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Include="..\Airudit.MdBook.Core\Internals\Extensions.InvariantString.cs">
-      <Link>Extensions.InvariantString.cs</Link>
-    </Compile>
-  </ItemGroup>
-
-  <ItemGroup>
     <ProjectReference Include="..\Airudit.MdBook.Core\Airudit.MdBook.Core.csproj" />
   </ItemGroup>
 

@@ -220,6 +220,20 @@ namespace Airudit.MdBook.Core
         /// </summary>
         public string? RenderedPage { get; set; }
         public CultureInfo? Lang { get; set; }
+
+        /// <summary>
+        /// The page's sort key from a front-matter <c>order:</c> number (issue #30): ascending sorts
+        /// earlier in the combined book; null (no key) sorts last. Only meaningful in the single-file
+        /// combined output, where the page sequence exists.
+        /// </summary>
+        public int? Order { get; set; }
+
+        /// <summary>
+        /// The doc manifest parsed from this file's front-matter, set only on a <c>.mdbook</c> file
+        /// (<see cref="IsManifest"/>); null on a regular page. Carries the book's <c>priority</c>,
+        /// <c>exclude</c> and table-of-contents settings (issue #30).
+        /// </summary>
+        internal DocManifest? Manifest { get; set; }
     }
 
     public sealed class SimpleMarkdownToHtmlLayerExport
