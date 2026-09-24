@@ -38,27 +38,49 @@ is set:
 ### The `.mdbook.<lang>.md` file
 
 Name a file `.mdbook.md` — or `.mdbook.<lang>.md` per language — among the inputs to give the
-book its own metadata and cover:
+book its own metadata, cover, and a small **manifest** that controls ordering, exclusion and
+the table of contents:
 
 ```markdown
 ---
-title: EPIIC Handbook
-lang: en
+title: MySystem Handbook            # book <title>
+lang: en                         # book language (localizes the TOC headings)
+priority: [readme, install]      # featured pages -> the "Start here" band, in this order
+exclude: [internal/, beta.md]    # pages to drop entirely (see "Excluding pages")
+exclusive: no                    # yes = ship ONLY the priority pages
+toc: yes                         # no = suppress the generated TOC (bring your own index)
+priority-title: Read these first # optional band heading (default localized)
+toc-title: In this book          # optional tree heading (default localized)
 ---
 
 Welcome. Start with [installation](install.en.md), then [licensing](licensing.en.md).
 ```
 
-- Its front-matter `title:` sets the book `<title>` (step 2 above) and `lang:` sets the
-  book's language, which also localizes the table-of-contents heading.
-- If it has **body text**, that body is rendered as the book's **introduction**, placed above
-  the table of contents — a natural home for a curated list of the pages that matter, with
-  links that resolve to in-file anchors like any other cross-page link.
-- The `.mdbook` file is **not a page**: it is never rendered in place, exported, or listed in the
-  table of contents, and a `.mdbook.*.md` found by scanning a folder is ignored (name it
-  explicitly on the command line to use it).
-- Under `--ByLang`, each book uses the `.mdbook` file whose language matches, falling back to a
-  language-neutral `.mdbook.md`. Give one per language for a localized cover:
+- **`title` / `lang`** set the book `<title>` (step 2 above) and language, which also localizes
+  the table-of-contents headings.
+- **Body text** is rendered as the book's **introduction**, placed above the table of contents
+  — a natural home for a curated index, with links that resolve to in-file anchors like any
+  other cross-page link.
+- **`priority`, `exclusive`, `toc`, `priority-title`, `toc-title`** shape page order and the
+  table of contents — see *Page order* and *Table of contents* below.
+- **`exclude`** removes pages — see *Excluding pages* below. Unlike every other key, it acts in
+  **all** output modes, not just the combined one.
+- Every key is optional; an absent `.mdbook` file is the same as an all-default one, and unknown
+  keys are ignored so new keys stay forward-compatible.
+
+**Path entries** (`priority`, `exclude`) match pages **by path, relative to the `.mdbook`
+file's own directory — not your working directory.** The trailing `.md` and any language
+segment are optional (`guide/intro` matches `guide/intro.en-US.md`); a trailing `/` matches a
+directory and its whole subtree; a `*` globs within one path segment (`advanced/*.md`).
+Resolving against the `.mdbook` file's directory means the same manifest works whether you build
+from the project root or from inside the docs folder.
+
+The `.mdbook` file is **not a page**: it is never rendered in place, exported, or listed in the
+table of contents, and a `.mdbook.*.md` found by scanning a folder is ignored (name it
+explicitly on the command line to use it).
+
+Under `--ByLang`, each book uses the `.mdbook` file whose language matches, falling back to a
+language-neutral `.mdbook.md`. Give one per language for a localized cover:
 
 ```bash
 mdbook --Single-File book.html --ByLang .mdbook.*.md .
@@ -69,7 +91,7 @@ writes `book.en.html` and `book.fr.html`, each with its own title and introducti
 Page order
 ----------------------------------------------------------------
 
-Pages are listed in the table of contents and concatenated in this order:
+By default, pages are listed and concatenated in input order:
 
 - Inputs are taken in the order given on the command line, files and folders alike.
   `mdbook README.md guide/ appendix.md` places `README.md` first, then the contents of
@@ -80,16 +102,57 @@ Pages are listed in the table of contents and concatenated in this order:
   position. So `mdbook guide/intro.md guide/` puts `intro.md` first and the rest of `guide/`
   after it, with no duplicate.
 
+The `.mdbook` manifest and per-page front matter override this for the combined book:
+
+- **Featured pages first.** `priority: [a, b]` in the `.mdbook` file lifts those pages to the
+  front, in the order listed (and into the "Start here" band — see below).
+- **Then by per-page `order`.** A page may carry an `order:` number in its own front matter;
+  the remaining pages are sorted by it, ascending. A page with no `order` keeps its input
+  position — the sort is stable — after all numbered pages. A convention that scales: give the
+  pages that matter low numbers and blocks of shared docs higher ranges (1000s, 2000s), so each
+  block stays together and sorts after your own pages.
+- **`exclusive: yes`** ships only the `priority` pages and drops the rest.
+
+Ordering (the band and per-page `order`) shapes the combined `--Single-File` book only; the
+in-place and `--Export` modes render each page on its own, with no sequence.
+
+Excluding pages
+----------------------------------------------------------------
+
+The `.mdbook` file's `exclude:` list removes pages from the build entirely — a shared doc that
+does not apply to this project, a draft, a whole feature's folder:
+
+```yaml
+exclude: [ internal/, drafts/*.md, beta.md ]
+```
+
+Unlike ordering and the table of contents, **`exclude` acts in every output mode** — in place,
+`--Export` and `--Single-File` alike: an excluded page is rendered nowhere. Entries match the
+same way as `priority` — relative to the `.mdbook` file's directory, a trailing `/` for a
+directory subtree, `*` for a glob, the language segment and `.md` optional. A one-line summary
+reports how many pages were dropped.
+
 Table of contents
 ----------------------------------------------------------------
 
-The combined file opens with a table of contents that mirrors the source folder structure:
-pages are nested under their folders, with the common leading folder stripped. The list is
-headed by a localized label (`Contents`, `Sommaire`, …) chosen from the book's language,
-defaulting to English for a mixed-language book with no stated language. Each page is
-labelled by its **title** — its front-matter `title:` if it has one, otherwise its first
-level-1 heading (`# …`), falling back to the file name without `.md`. Folders appear as plain
-labels.
+The combined file opens with a table of contents in two parts:
+
+- an optional **"Start here" band** — the `priority` pages as a flat, curated shortlist at the
+  top (a priority page also appears in the tree below, like a quick-links box); then
+- the full **nested tree** that mirrors the source folder structure, with the common leading
+  folder stripped and pages sorted by their per-page `order` within each level.
+
+Each page is labelled by its **title** — its front-matter `title:` if it has one, otherwise its
+first level-1 heading (`# …`), falling back to the file name without `.md`. Folders appear as
+plain labels.
+
+- The two headings are localized from the book's language — the band defaults to `Start here` /
+  `Pour commencer` / …, the tree to `Contents` / `Sommaire` / … — and each can be overridden
+  with `priority-title:` / `toc-title:` in the `.mdbook` file.
+- **`toc: no`** suppresses the whole generated table of contents (band and tree); write your own
+  index in the `.mdbook` file's introduction instead.
+- The table of contents is `<article id="toc" class="toc">` and the band is
+  `<nav class="toc-band">`, so a template can style or float them purely in CSS.
 
 In-file links
 ----------------------------------------------------------------
@@ -168,6 +231,8 @@ Known limitations
   language is absent from the other languages' books; there is no automatic fallback to
   another language yet. Tracked in
   [issue #24](https://github.com/Airudit/mdbook/issues/24).
-- **The `.mdbook` file affects the combined output only.** In the in-place and `--Export`
-  modes it is ignored — no book title or introduction there; use `--Title` and per-page
-  front-matter for titles in those modes.
+- **Most of the `.mdbook` manifest affects the combined output only.** The book title,
+  introduction, `priority`, per-page `order` and the table-of-contents keys apply to
+  `--Single-File`; in the in-place and `--Export` modes they are ignored (use `--Title` and
+  per-page front-matter for titles there). The one exception is **`exclude`, which acts in every
+  mode.**

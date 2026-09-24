@@ -163,11 +163,16 @@ table-of-contents label. Only `title` is read for now; unknown keys are ignored.
 
 A file named `.mdbook.md` — or `.mdbook.<lang>.md` per language (`.mdbook.en.md`,
 `.mdbook.fr.md`) — is a **book-metadata file**, not a page. Name it among the inputs and
-`mdbook` reads its front-matter as the book's metadata (`title`, `lang`) and, if it has body
-text, renders that body as the book's **introduction**, placed above the table of contents.
-The `.mdbook` file is never rendered, exported, or listed as a page, and one found by scanning a
-folder is ignored (name it explicitly to use it). It applies to the combined `--Single-File`
-output only; for the full behaviour and the book-title fallback chain, see
+`mdbook` reads its front-matter as the book's metadata and manifest: `title` and `lang`, an
+optional body rendered as the book's **introduction**, and a small manifest that orders and
+prunes the book — `priority` (a featured "Start here" shortlist), per-page `order`, `exclude`,
+`exclusive`, `toc`, and the `priority-title` / `toc-title` headings. The `.mdbook` file is never
+rendered, exported, or listed as a page, and one found by scanning a folder is ignored (name it
+explicitly to use it).
+
+Most of the manifest applies to the combined `--Single-File` output only; the exception is
+**`exclude`, which drops pages in every mode** (in place, `--Export`, `--Single-File`). For the
+full behaviour, the path-matching rules, and the book-title fallback chain, see
 [Single-file books](single-file.en.md).
 
 Environment variables
@@ -270,8 +275,9 @@ Ordering
 ----------------------------------------------------------------
 
 The order in which inputs are taken, folders are walked, and duplicates are dropped is only
-observable in the combined output, so it is documented with the mode it affects — see
-*Page order* in [Single-file books](single-file.en.md).
+observable in the combined output, so it is documented with the mode it affects — along with the
+`.mdbook` manifest's `priority` shortlist and per-page `order` key — under *Page order* in
+[Single-file books](single-file.en.md).
 
 Troubleshooting
 ----------------------------------------------------------------

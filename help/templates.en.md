@@ -83,6 +83,23 @@ with a matching theme (a diagram's colours are baked into its SVG, so they must
 suit the page). The built-in templates already declare theirs. This is separate
 from the `{{{HighlightStyles}}}` choice above, which themes only fenced code.
 
+Styling the table of contents
+----------------------------------------------------------------
+
+A `--Single-File` book renders `{{{Contents}}}` as the introduction, then the table of
+contents, then the pages. The table of contents carries stable hooks so a template can style
+or float it purely in CSS — no core change:
+
+- `<article id="toc" class="toc">` — the whole table of contents. Target `#toc` to give it a
+  sticky sidebar, a border, or a column of its own.
+- `<nav class="toc-band">` with `<h2 class="toc-title toc-band-title">` — the optional
+  "Start here" band of featured pages (present only when the `.mdbook` file lists a
+  `priority`). The built-in templates render it as a callout box.
+- `<h2 class="toc-title">` — the heading of every table-of-contents block.
+
+See [Single-file books](single-file.en.md) for the `.mdbook` manifest that drives the band,
+the ordering and `toc: no`.
+
 A minimal template
 ----------------------------------------------------------------
 
