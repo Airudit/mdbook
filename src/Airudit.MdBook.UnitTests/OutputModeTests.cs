@@ -644,7 +644,7 @@ public class OutputModeTests
         Assert.Contains("id=\"intro\"", html);
         Assert.Contains("Intro-marker.", html);
         // intro sits before the table of contents (book heading -> intro -> contents -> pages)
-        Assert.True(html.IndexOf("Intro-marker.", StringComparison.Ordinal) < html.IndexOf("<article id=toc>", StringComparison.Ordinal));
+        Assert.True(html.IndexOf("Intro-marker.", StringComparison.Ordinal) < html.IndexOf("<article id=toc", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -764,6 +764,81 @@ public class OutputModeTests
         Assert.True(html.IndexOf("Beta", StringComparison.Ordinal) < html.IndexOf("Alpha", StringComparison.Ordinal));
     }
 
+    // --- issue #30: table of contents option B (priority band + nested tree) ---
+
+    [Fact]
+    public void Priority_band_lists_the_priority_pages_at_the_top()
+    {
+        using var dir = new TempTree(
+            (".mdbook.md", "---\npriority: [c, a]\n---"),
+            ("a.md", "# Alpha"),
+            ("b.md", "# Beta"),
+            ("c.md", "# Gamma"));
+        var single = Path.Combine(dir.Root, "book.html");
+        RunCli(Path.Combine(dir.Root, "a.md"), Path.Combine(dir.Root, "b.md"), Path.Combine(dir.Root, "c.md"), Path.Combine(dir.Root, ".mdbook.md"), "--single-file", single);
+
+        var toc = TableOfContents(File.ReadAllText(single));
+        Assert.Contains("<nav class=\"toc-band\">", toc);
+        Assert.Contains("Start here", toc);
+        Assert.True(toc.IndexOf("Start here", StringComparison.Ordinal) < toc.IndexOf("Contents", StringComparison.Ordinal));
+        Assert.True(toc.IndexOf("Gamma", StringComparison.Ordinal) < toc.IndexOf("Alpha", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void No_priority_means_no_band()
+    {
+        using var dir = new TempTree((".mdbook.md", "---\ntitle: Book\n---"), ("a.md", "# Alpha"));
+        var single = Path.Combine(dir.Root, "book.html");
+        RunCli(Path.Combine(dir.Root, "a.md"), Path.Combine(dir.Root, ".mdbook.md"), "--single-file", single);
+        Assert.DoesNotContain("<nav class=\"toc-band\">", File.ReadAllText(single));
+    }
+
+    [Fact]
+    public void Toc_no_suppresses_the_generated_table_of_contents()
+    {
+        using var dir = new TempTree(
+            (".mdbook.md", "---\ntoc: no\n---\n\nMy own index."),
+            ("a.md", "# Alpha"));
+        var single = Path.Combine(dir.Root, "book.html");
+        RunCli(Path.Combine(dir.Root, "a.md"), Path.Combine(dir.Root, ".mdbook.md"), "--single-file", single);
+
+        var html = File.ReadAllText(single);
+        Assert.DoesNotContain("<article id=toc", html);
+        Assert.Contains("My own index.", html);
+        Assert.Contains("Alpha", html);
+    }
+
+    [Fact]
+    public void Priority_title_and_toc_title_override_the_headings()
+    {
+        using var dir = new TempTree(
+            (".mdbook.md", "---\npriority: [a]\npriority-title: Read these first\ntoc-title: In this book\n---"),
+            ("a.md", "# Alpha"),
+            ("b.md", "# Beta"));
+        var single = Path.Combine(dir.Root, "book.html");
+        RunCli(Path.Combine(dir.Root, "a.md"), Path.Combine(dir.Root, "b.md"), Path.Combine(dir.Root, ".mdbook.md"), "--single-file", single);
+
+        var toc = TableOfContents(File.ReadAllText(single));
+        Assert.Contains("Read these first", toc);
+        Assert.Contains("In this book", toc);
+        Assert.DoesNotContain("Start here", toc);
+    }
+
+    [Fact]
+    public void Priority_band_uses_the_localized_default_heading()
+    {
+        using var dir = new TempTree(
+            (".mdbook.fr.md", "---\nlang: fr\npriority: [a]\n---"),
+            ("a.fr.md", "# Alpha"),
+            ("b.fr.md", "# Beta"));
+        var single = Path.Combine(dir.Root, "book.html");
+        RunCli(Path.Combine(dir.Root, "a.fr.md"), Path.Combine(dir.Root, "b.fr.md"), Path.Combine(dir.Root, ".mdbook.fr.md"), "--single-file", single);
+
+        var toc = TableOfContents(File.ReadAllText(single));
+        Assert.Contains("Pour commencer", toc);
+        Assert.Contains("Sommaire", toc);
+    }
+
     // --- issue #30: the manifest `exclude` list drops pages in every output mode ---
 
     [Fact]
@@ -877,7 +952,7 @@ public class OutputModeTests
     // Extracts the "<article id=toc>...</article>" table-of-contents block.
     private static string TableOfContents(string html)
     {
-        var start = html.IndexOf("<article id=toc>", StringComparison.Ordinal);
+        var start = html.IndexOf("<article id=toc", StringComparison.Ordinal);
         var end = html.IndexOf("</article>", start, StringComparison.Ordinal);
         return html.Substring(start, end - start);
     }

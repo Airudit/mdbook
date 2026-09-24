@@ -31,6 +31,18 @@ public class CombineMarkdownToHtmlTask : ITask
         ["pt"] = "Conteúdo",
     };
 
+    // Localized heading for the "Start here" priority band (issue #30), same fallback as the TOC.
+    private static readonly Dictionary<string, string> priorityHeadings = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["en"] = "Start here",
+        ["fr"] = "Pour commencer",
+        ["de"] = "Erste Schritte",
+        ["es"] = "Empezar aquí",
+        ["it"] = "Inizia qui",
+        ["nl"] = "Begin hier",
+        ["pt"] = "Comece aqui",
+    };
+
     // Local (non-external) anchors emitted by SimpleMarkdownToHtmlTask: "<a href="...">".
     // External links carry a class attribute before href, so this only matches local ones.
     private static readonly Regex localLinkRegex = new Regex(@"<a href=""([^""]+)"">", RegexOptions.Compiled);
@@ -144,7 +156,8 @@ public class CombineMarkdownToHtmlTask : ITask
         // so unnumbered pages keep their existing sequence); `exclusive` ships only the priority
         // pages. With no manifest this is a stable `order` sort, and with no orders either it is the
         // pages exactly as assembled.
-        var ordered = OrderPages(items, manifest);
+        var pageOrder = OrderPages(items, manifest);
+        var ordered = pageOrder.Ordered;
 
         // Assign each page a stable, path-based anchor slug (e.g. "guide/intro.md" ->
         // "guide-intro"), stored on the item so the table of contents, images and per-language
@@ -200,14 +213,32 @@ public class CombineMarkdownToHtmlTask : ITask
             ?? (langs.Count > 0 ? langs.OrderByDescending(x => x.Value).First().Key : "en-US");
         var lang = new CultureInfo(langName);
 
-        // Table of contents, headed by a language-localized label ("Contents" / "Sommaire" / ...).
+        // Table of contents (issue #30, option B): an optional "Start here" band listing the
+        // manifest `priority` pages as a flat, curated shortlist, then the full nested tree sorted by
+        // `order`. Both headings are language-localized and overridable from the manifest. `toc: no`
+        // suppresses the whole generated table of contents (the author's intro is then the index).
         using var list = new StringWriter();
-        list.WriteLine("<article id=toc>");
-        list.WriteLine("<h2 class=\"toc-title\">" + HttpUtility.HtmlEncode(TableOfContentsHeading(lang)) + "</h2>");
-        WriteTableOfContents(list, ordered);
-        list.WriteLine("</article>");
-        list.WriteLine();
-        list.WriteLine();
+        var config = manifest?.Manifest;
+        if (config?.Toc ?? true)
+        {
+            list.WriteLine("<article id=toc class=\"toc\">");
+
+            if (pageOrder.Priority.Count > 0)
+            {
+                var bandHeading = !string.IsNullOrWhiteSpace(config?.PriorityTitle) ? config!.PriorityTitle! : PriorityBandHeading(lang);
+                list.WriteLine("<nav class=\"toc-band\">");
+                list.WriteLine("<h2 class=\"toc-title toc-band-title\">" + HttpUtility.HtmlEncode(bandHeading) + "</h2>");
+                WritePriorityBand(list, pageOrder.Priority);
+                list.WriteLine("</nav>");
+            }
+
+            var treeHeading = !string.IsNullOrWhiteSpace(config?.TocTitle) ? config!.TocTitle! : TableOfContentsHeading(lang);
+            list.WriteLine("<h2 class=\"toc-title\">" + HttpUtility.HtmlEncode(treeHeading) + "</h2>");
+            WriteTableOfContents(list, ordered);
+            list.WriteLine("</article>");
+            list.WriteLine();
+            list.WriteLine();
+        }
 
         // A .mdbook file's body becomes the book's introduction, placed before the table of contents
         // (book heading -> intro -> contents -> pages). Its local links resolve to in-file anchors.
@@ -413,7 +444,7 @@ public class CombineMarkdownToHtmlTask : ITask
     // remaining pages by ascending per-page `order` (a stable sort, so an unnumbered page — or, with
     // no manifest and no orders, every page — keeps the sequence in which it was assembled). With
     // `exclusive`, only the priority pages are returned.
-    private static List<SimpleMarkdownToHtmlLayerItem> OrderPages(IEnumerable<SimpleMarkdownToHtmlLayerItem> items, SimpleMarkdownToHtmlLayerItem? manifest)
+    private static (List<SimpleMarkdownToHtmlLayerItem> Ordered, List<SimpleMarkdownToHtmlLayerItem> Priority) OrderPages(IEnumerable<SimpleMarkdownToHtmlLayerItem> items, SimpleMarkdownToHtmlLayerItem? manifest)
     {
         var pages = items.Where(item => item.IsMarkdown).ToList();
         var config = manifest?.Manifest;
@@ -444,7 +475,7 @@ public class CombineMarkdownToHtmlTask : ITask
 
         if (config?.Exclusive == true)
         {
-            return priority;
+            return (new List<SimpleMarkdownToHtmlLayerItem>(priority), priority);
         }
 
         var rest = pages
@@ -452,8 +483,9 @@ public class CombineMarkdownToHtmlTask : ITask
             .OrderBy(page => page.Order ?? int.MaxValue)
             .ToList();
 
-        priority.AddRange(rest);
-        return priority;
+        var ordered = new List<SimpleMarkdownToHtmlLayerItem>(priority);
+        ordered.AddRange(rest);
+        return (ordered, priority);
     }
 
     // Picks the .mdbook file that applies to this book: the one whose language matches, else a
@@ -494,6 +526,32 @@ public class CombineMarkdownToHtmlTask : ITask
         }
 
         return "Contents";
+    }
+
+    // The localized "Start here" priority-band heading for a language, defaulting to English.
+    private static string PriorityBandHeading(CultureInfo lang)
+    {
+        if (lang != null && priorityHeadings.TryGetValue(lang.TwoLetterISOLanguageName, out var label))
+        {
+            return label;
+        }
+
+        return "Start here";
+    }
+
+    // Writes the "Start here" band: the priority pages as a flat list of anchor links, in the
+    // order the manifest listed them (issue #30). Priority pages also appear in the tree below.
+    private static void WritePriorityBand(TextWriter list, IEnumerable<SimpleMarkdownToHtmlLayerItem> priority)
+    {
+        list.WriteLine("<ul>");
+        foreach (var page in priority)
+        {
+            list.Write("<li><a href=\"#" + page.Anchor + "\">");
+            list.Write(HttpUtility.HtmlEncode(TableOfContentsLabel(page)));
+            list.WriteLine("</a></li>");
+        }
+
+        list.WriteLine("</ul>");
     }
 
     // The combined book's <title>: --Title, else the .mdbook file's title, else the first page's
