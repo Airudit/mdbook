@@ -43,6 +43,25 @@ namespace Airudit.MdBook.Core
             }
         }
 
+        private static bool languageOverridesInstalled;
+
+        // Replace ColorCode's built-in JSON grammar with one that does not catastrophically backtrack
+        // on arrays of long string values (CommunityToolkit/ColorCode-Universal#45). ColorCode caches
+        // compiled grammars by id and never recompiles, so this must run before the first JSON block
+        // is highlighted — hence at pipeline setup, before any render. Idempotent. TEMPORARY: drop
+        // this (and FixedJsonLanguage) once the fix ships in a ColorCode.HTML release and the package
+        // reference is bumped (upstream PR #46).
+        public static void InstallLanguageOverrides()
+        {
+            if (languageOverridesInstalled)
+            {
+                return;
+            }
+
+            Languages.Load(new FixedJsonLanguage());
+            languageOverridesInstalled = true;
+        }
+
         // The per-block match timeout: MDBOOK_HIGHLIGHT_TIMEOUT_MS if a positive integer, else 1000 ms.
         public static TimeSpan ResolveMatchTimeout()
         {

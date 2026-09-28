@@ -2,6 +2,7 @@
 namespace Airudit.MdBook.UnitTests;
 
 using Airudit.MdBook.Core;
+using ColorCode;
 
 /// <summary>
 /// The <c>{{{HighlightStyles}}}</c> placeholder generator (issue #25): theme CSS is produced from
@@ -81,5 +82,38 @@ public class SyntaxHighlightingTests
         {
             Environment.SetEnvironmentVariable("MDBOOK_HIGHLIGHT_TIMEOUT_MS", previous);
         }
+    }
+
+    // --- issue #45 (CommunityToolkit/ColorCode-Universal#45): a JSON array of long string values
+    // must not send the highlighter into catastrophic backtracking. The shipped NuGet grammar hangs;
+    // the FixedJsonLanguage override (installed here as the pipeline does at setup) makes it linear. ---
+
+    [Fact]
+    public void Json_array_of_long_strings_highlights_without_backtracking()
+    {
+        // Install the corrected grammar before the first "json" compile, exactly as the pipeline does.
+        // Without it the key rule explores O(2^n) partitions of each ~45-char path and never returns;
+        // this test running long IS the bug, so the call is bounded and a timeout fails it fast.
+        SyntaxHighlightingExtension.InstallLanguageOverrides();
+
+        var json = "{\n" +
+                   "  \"OntologyRdfInputFilesPaths\": [\n" +
+                   "    \"SBROOT/v4.3/data/ontology/aaaaaaa.ttl\",\n" +
+                   "    \"SBROOT/v4.3/data/ontology/fffff.ttl\",\n" +
+                   "    \"SBROOT/v4.3/data/ontology/regtkjer.ttl\",\n" +
+                   "    \"SBROOT/../project/ontology/aaaaa-Airudit.ttl\",\n" +
+                   "    \"SBROOT/../project/ontology/aaaaa.ttl\"\n" +
+                   "  ]\n" +
+                   "}";
+
+        string? html = null;
+        var task = Task.Run(() => html = new HtmlClassFormatter().GetHtmlString(json, Languages.FindById("json")));
+
+        Assert.True(
+            task.Wait(TimeSpan.FromSeconds(10)),
+            "Highlighting a JSON array of long string values did not finish in 10s — the JSON grammar is backtracking catastrophically (issue #45).");
+        Assert.NotNull(html);
+        Assert.Contains("jsonKey", html);   // the "OntologyRdfInputFilesPaths" key
+        Assert.Contains("jsonString", html); // the path values
     }
 }

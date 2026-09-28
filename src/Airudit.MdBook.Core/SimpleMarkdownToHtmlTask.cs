@@ -117,6 +117,10 @@ namespace Airudit.MdBook.Core
                 // Cap ColorCode's regexes before it ever compiles them, so a malformed code block
                 // aborts and falls back to plain instead of backtracking for minutes (issue #25).
                 SyntaxHighlightingExtension.InstallDefaultRegexTimeout();
+
+                // Swap in a JSON grammar that does not catastrophically backtrack on arrays of long
+                // string values; must run before the first block compiles (issue #45).
+                SyntaxHighlightingExtension.InstallLanguageOverrides();
                 pipelineBuilder.Extensions.Add(new SyntaxHighlightingExtension());
             }
 
