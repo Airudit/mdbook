@@ -160,10 +160,10 @@ jobs:
 
       # Showcase: render this repo's own help/ folder into single-file books using the
       # binary we just published (no rebuild), one per template and per language (--ByLang,
-      # so a future translation is picked up automatically). The lead pages are named
-      # explicitly to fix their reading order; the rest of the folder follows (alphabetical).
-      # The explicit lead order applies to the language named here (en); other languages fall
-      # back to alphabetical until the tool learns language-agnostic ordering.
+      # so a future translation is picked up automatically). Reading order, the "Start here"
+      # band and the cover come from help/.mdbook.md — the project dogfooding the doc manifest
+      # (issue #30). That file is language-neutral, so its lead order applies to every language,
+      # not just English.
       #
       # Diagrams are rendered through the public Kroki server. The help book's diagrams are
       # the project's own public architecture illustrations, so their source is fine to send.
@@ -176,7 +176,7 @@ jobs:
           mkdir -p dist/help
           for variant in light dark; do
             dist/publish/mdbook \
-              help/README.en.md help/getting-started.en.md help/cli-usage.en.md help \
+              help help/.mdbook.md \
               --Single-File "dist/help/mdbook-help-${VERSION}.{lang}.${variant}.html" \
               --ByLang \
               --Diagrams kroki --KrokiUrl https://kroki.io/ \
