@@ -39,6 +39,12 @@ namespace Airudit.MdBook.Core
         // Opt-out for the numbered-setext-heading fix; on by default.
         private const string NumberedSetextFixEnvVar = "MDBOOK_NUMBERED_SETEXT_FIX";
 
+        // A filename language segment must be shaped like a BCP-47 tag — a 2-3 letter primary
+        // subtag, optional "-subtag" parts — so a non-language dotted segment (".mdbook", ".draft")
+        // is not mistaken for a culture. Needed because new CultureInfo("mdbook") does not throw on
+        // ICU runtimes (it yields an unknown custom culture), which would otherwise mis-tag the file.
+        private static readonly Regex languageCodeRegex = new Regex(@"^[A-Za-z]{2,3}(-[A-Za-z0-9]+)*$", RegexOptions.Compiled);
+
         private static readonly char[] directorySeparators = new char[] { '/', '\\', };
         private string? profile;
         private SimpleMarkdownToHtmlLayer? layer;
@@ -209,7 +215,7 @@ namespace Airudit.MdBook.Core
                 }
 
                 var baseDirectory = manifest.SourceFile.DirectoryName ?? ".";
-                foreach (var entry in config.Exclude)
+                foreach (var entry in config.EffectiveExclude)
                 {
                     rules.Add((baseDirectory, entry));
                 }
@@ -359,7 +365,7 @@ namespace Airudit.MdBook.Core
             CultureInfo lang = null;
             var dot = new char[] { '.', };
             var titleParts = title.Split(dot);
-            if (titleParts.Length > 1 && titleParts[^1].Length >= 2)
+            if (titleParts.Length > 1 && languageCodeRegex.IsMatch(titleParts[^1]))
             {
                 try
                 {

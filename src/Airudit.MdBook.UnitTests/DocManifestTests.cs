@@ -5,7 +5,8 @@ using Airudit.MdBook.Core;
 
 /// <summary>
 /// The doc manifest parsed from a <c>.mdbook</c> file's front-matter (issue #30):
-/// <see cref="DocManifest.FromFrontMatter"/> field mapping and defaults.
+/// <see cref="DocManifest.FromFrontMatter"/> field mapping, defaults, and layering via
+/// <see cref="DocManifest.Merge"/>.
 /// </summary>
 public class DocManifestTests
 {
@@ -22,10 +23,10 @@ public class DocManifestTests
             "priority-title: Read these first\n" +
             "toc-title: In this book");
 
-        Assert.Equal(new[] { "readme", "install/prereqs" }, manifest.Priority);
-        Assert.Equal(new[] { "PromethaiApi/", "beta.md" }, manifest.Exclude);
-        Assert.True(manifest.Exclusive);
-        Assert.False(manifest.Toc);
+        Assert.Equal(new[] { "readme", "install/prereqs" }, manifest.EffectivePriority);
+        Assert.Equal(new[] { "PromethaiApi/", "beta.md" }, manifest.EffectiveExclude);
+        Assert.True(manifest.EffectiveExclusive);
+        Assert.False(manifest.EffectiveToc);
         Assert.Equal("Read these first", manifest.PriorityTitle);
         Assert.Equal("In this book", manifest.TocTitle);
     }
@@ -35,33 +36,78 @@ public class DocManifestTests
     {
         var manifest = From("title: Book\nlang: en");
 
-        Assert.Empty(manifest.Priority);
-        Assert.Empty(manifest.Exclude);
-        Assert.False(manifest.Exclusive);
-        Assert.True(manifest.Toc);
+        Assert.Empty(manifest.EffectivePriority);
+        Assert.Empty(manifest.EffectiveExclude);
+        Assert.False(manifest.EffectiveExclusive);
+        Assert.True(manifest.EffectiveToc);
         Assert.Null(manifest.PriorityTitle);
         Assert.Null(manifest.TocTitle);
     }
 
     [Fact]
+    public void Unset_keys_are_null_so_they_can_be_told_from_defaults()
+    {
+        var manifest = From("title: Book");
+
+        Assert.Null(manifest.Priority);
+        Assert.Null(manifest.Exclude);
+        Assert.Null(manifest.Exclusive);
+        Assert.Null(manifest.Toc);
+    }
+
+    [Fact]
     public void Toc_defaults_to_true_and_is_only_turned_off_explicitly()
     {
-        Assert.True(From("title: Book").Toc);
-        Assert.False(From("toc: no").Toc);
-        Assert.True(From("toc: yes").Toc);
+        Assert.True(From("title: Book").EffectiveToc);
+        Assert.False(From("toc: no").EffectiveToc);
+        Assert.True(From("toc: yes").EffectiveToc);
     }
 
     [Fact]
     public void Exclusive_defaults_to_false()
     {
-        Assert.False(From("title: Book").Exclusive);
-        Assert.True(From("exclusive: yes").Exclusive);
+        Assert.False(From("title: Book").EffectiveExclusive);
+        Assert.True(From("exclusive: yes").EffectiveExclusive);
+    }
+
+    [Fact]
+    public void Inherit_is_off_unless_declared()
+    {
+        Assert.False(From("title: Book").Inherit);
+        Assert.True(From("inherit: yes").Inherit);
     }
 
     [Fact]
     public void A_block_style_exclude_list_is_read()
     {
         var manifest = From("exclude:\n  - PromethaiApi/\n  - advanced/*.md");
-        Assert.Equal(new[] { "PromethaiApi/", "advanced/*.md" }, manifest.Exclude);
+        Assert.Equal(new[] { "PromethaiApi/", "advanced/*.md" }, manifest.EffectiveExclude);
+    }
+
+    // --- layering (Merge) ---
+
+    [Fact]
+    public void Merge_fills_unset_overlay_keys_from_the_base()
+    {
+        var baseManifest = From("priority: [readme]\nexclude: [internal/]\ntoc: no");
+        var overlay = From("title: Manuel");  // only a (item-level) title; manifest keys all unset
+
+        var merged = DocManifest.Merge(baseManifest, overlay);
+
+        Assert.Equal(new[] { "readme" }, merged.EffectivePriority);
+        Assert.Equal(new[] { "internal/" }, merged.EffectiveExclude);
+        Assert.False(merged.EffectiveToc);
+    }
+
+    [Fact]
+    public void Merge_lets_a_set_overlay_key_win()
+    {
+        var baseManifest = From("priority: [readme]\ntoc-title: Contents");
+        var overlay = From("priority: [intro]\ntoc-title: Sommaire");
+
+        var merged = DocManifest.Merge(baseManifest, overlay);
+
+        Assert.Equal(new[] { "intro" }, merged.EffectivePriority);
+        Assert.Equal("Sommaire", merged.TocTitle);
     }
 }

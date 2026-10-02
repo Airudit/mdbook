@@ -8,31 +8,55 @@ namespace Airudit.MdBook.Core
     /// The project-local doc manifest parsed from a <c>.mdbook[.lang].md</c> file's front-matter
     /// (issue #30): which pages lead the book (<see cref="Priority"/>), which are dropped
     /// (<see cref="Exclude"/>), and how the combined single-file table of contents is presented.
-    /// Every key is optional; an absent manifest is equivalent to an all-default one. Path entries
-    /// (in <see cref="Priority"/> and <see cref="Exclude"/>) resolve relative to the
+    /// Path entries (in <see cref="Priority"/> and <see cref="Exclude"/>) resolve relative to the
     /// <c>.mdbook</c> file's own directory, not the working directory.
     /// </summary>
+    /// <remarks>
+    /// Keys are stored as nullable so an <em>unset</em> key can be told apart from one set to a
+    /// default-looking value, which is what <see cref="Merge"/> needs: a per-language overlay that
+    /// opts in with <see cref="Inherit"/> fills its unset keys from the neutral base manifest. Read
+    /// values through the <c>Effective*</c> accessors, which apply the defaults.
+    /// </remarks>
     internal sealed class DocManifest
     {
-        /// <summary>Featured pages, in listed order, rendered as the "Start here" table-of-contents band (single-file only).</summary>
-        public IReadOnlyList<string> Priority { get; private set; } = Array.Empty<string>();
+        /// <summary>Featured pages, in listed order, rendered as the "Start here" band; null when unset.</summary>
+        public IReadOnlyList<string>? Priority { get; private set; }
 
-        /// <summary>Pages removed from the book — files, directories (trailing <c>/</c>) or globs. Acts in every output mode.</summary>
-        public IReadOnlyList<string> Exclude { get; private set; } = Array.Empty<string>();
+        /// <summary>Pages removed from the book (files, directories, globs); acts in every output mode. Null when unset.</summary>
+        public IReadOnlyList<string>? Exclude { get; private set; }
 
-        /// <summary>When true, ship only the <see cref="Priority"/> pages and drop everything else (single-file only). Default false.</summary>
-        public bool Exclusive { get; private set; }
+        /// <summary>When true, ship only the <see cref="Priority"/> pages. Null when unset (defaults to false).</summary>
+        public bool? Exclusive { get; private set; }
 
-        /// <summary>When false, suppress the generated table of contents so the author's intro is the index (single-file only). Default true.</summary>
-        public bool Toc { get; private set; } = true;
+        /// <summary>When false, suppress the generated table of contents. Null when unset (defaults to true).</summary>
+        public bool? Toc { get; private set; }
 
-        /// <summary>Heading for the "Start here" priority band; null falls back to a localized default.</summary>
+        /// <summary>Heading for the "Start here" band; null falls back to a localized default.</summary>
         public string? PriorityTitle { get; private set; }
 
         /// <summary>Heading for the generated table of contents; null falls back to a localized default.</summary>
         public string? TocTitle { get; private set; }
 
-        /// <summary>Reads a manifest from an already-parsed front-matter block. Unknown keys are ignored (forward-compatible).</summary>
+        /// <summary>
+        /// Opt-in, on a per-language overlay, to inherit the neutral <c>.mdbook.md</c> base for every
+        /// key this overlay leaves unset (issue #30). False (the default) makes the overlay
+        /// standalone. Has no effect on the neutral base itself.
+        /// </summary>
+        public bool Inherit { get; private set; }
+
+        /// <summary>The featured pages, or an empty list when unset.</summary>
+        public IReadOnlyList<string> EffectivePriority => this.Priority ?? Array.Empty<string>();
+
+        /// <summary>The excluded pages, or an empty list when unset.</summary>
+        public IReadOnlyList<string> EffectiveExclude => this.Exclude ?? Array.Empty<string>();
+
+        /// <summary>Whether to ship only the priority pages (default false).</summary>
+        public bool EffectiveExclusive => this.Exclusive ?? false;
+
+        /// <summary>Whether to render the generated table of contents (default true).</summary>
+        public bool EffectiveToc => this.Toc ?? true;
+
+        /// <summary>Reads a manifest from an already-parsed front-matter block. A key is set only when present (so unset keys stay null for <see cref="Merge"/>); unknown keys are ignored (forward-compatible).</summary>
         public static DocManifest FromFrontMatter(FrontMatter frontMatter)
         {
             if (frontMatter == null)
@@ -42,12 +66,42 @@ namespace Airudit.MdBook.Core
 
             return new DocManifest
             {
-                Priority = frontMatter.GetList("priority"),
-                Exclude = frontMatter.GetList("exclude"),
-                Exclusive = frontMatter.GetBool("exclusive") ?? false,
-                Toc = frontMatter.GetBool("toc") ?? true,
+                Priority = frontMatter.Contains("priority") ? frontMatter.GetList("priority") : null,
+                Exclude = frontMatter.Contains("exclude") ? frontMatter.GetList("exclude") : null,
+                Exclusive = frontMatter.GetBool("exclusive"),
+                Toc = frontMatter.GetBool("toc"),
                 PriorityTitle = frontMatter.GetString("priority-title"),
                 TocTitle = frontMatter.GetString("toc-title"),
+                Inherit = frontMatter.GetBool("inherit") ?? false,
+            };
+        }
+
+        /// <summary>
+        /// Layers <paramref name="overlay"/> over <paramref name="baseManifest"/>: each key takes the
+        /// overlay's value when set, otherwise the base's. Used only when the overlay opts in with
+        /// <see cref="Inherit"/>.
+        /// </summary>
+        public static DocManifest Merge(DocManifest baseManifest, DocManifest overlay)
+        {
+            if (baseManifest == null)
+            {
+                throw new ArgumentNullException(nameof(baseManifest));
+            }
+
+            if (overlay == null)
+            {
+                throw new ArgumentNullException(nameof(overlay));
+            }
+
+            return new DocManifest
+            {
+                Priority = overlay.Priority ?? baseManifest.Priority,
+                Exclude = overlay.Exclude ?? baseManifest.Exclude,
+                Exclusive = overlay.Exclusive ?? baseManifest.Exclusive,
+                Toc = overlay.Toc ?? baseManifest.Toc,
+                PriorityTitle = overlay.PriorityTitle ?? baseManifest.PriorityTitle,
+                TocTitle = overlay.TocTitle ?? baseManifest.TocTitle,
+                Inherit = overlay.Inherit,
             };
         }
     }

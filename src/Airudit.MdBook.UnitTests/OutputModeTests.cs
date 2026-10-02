@@ -936,6 +936,113 @@ public class OutputModeTests
         Assert.Contains("<title>Manuel</title>", File.ReadAllText(Path.Combine(dir.Root, "book.fr.html")));
     }
 
+    [Fact]
+    public void A_language_neutral_manifest_applies_to_every_bylang_book()
+    {
+        // A .mdbook.md (no language) must apply to each language's book — and its own name must not
+        // be mistaken for a "mdbook" language, which would make it look language-specific.
+        using var dir = new TempTree(
+            (".mdbook.md", "---\npriority: [a]\n---\n\nNeutral intro."),
+            ("a.en.md", "# Alpha"),
+            ("a.fr.md", "# Alpha FR"));
+        RunCli(
+            Path.Combine(dir.Root, "a.en.md"),
+            Path.Combine(dir.Root, "a.fr.md"),
+            Path.Combine(dir.Root, ".mdbook.md"),
+            "--single-file", Path.Combine(dir.Root, "book.{lang}.html"), "--bylang");
+
+        foreach (var language in new[] { "en", "fr" })
+        {
+            var html = File.ReadAllText(Path.Combine(dir.Root, "book." + language + ".html"));
+            Assert.Contains("Neutral intro.", html);
+            Assert.Contains("<nav class=\"toc-band\">", html);
+        }
+    }
+
+    // --- issue #30: manifest layering (neutral base + opt-in per-language overlay) ---
+
+    [Fact]
+    public void An_overlay_with_inherit_merges_the_neutral_base()
+    {
+        using var dir = new TempTree(
+            (".mdbook.md", "---\npriority: [a]\n---"),
+            (".mdbook.fr.md", "---\ninherit: yes\ntitle: Manuel\n---"),
+            ("a.fr.md", "# Alpha"),
+            ("b.fr.md", "# Beta"));
+        RunCli(Path.Combine(dir.Root, "a.fr.md"), Path.Combine(dir.Root, "b.fr.md"),
+            Path.Combine(dir.Root, ".mdbook.md"), Path.Combine(dir.Root, ".mdbook.fr.md"),
+            "--single-file", Path.Combine(dir.Root, "book.{lang}.html"), "--bylang");
+
+        var fr = File.ReadAllText(Path.Combine(dir.Root, "book.fr.html"));
+        Assert.Contains("<title>Manuel</title>", fr);        // localized title from the overlay
+        Assert.Contains("<nav class=\"toc-band\">", fr);      // priority inherited from the base
+    }
+
+    [Fact]
+    public void An_overlay_without_inherit_is_standalone()
+    {
+        using var dir = new TempTree(
+            (".mdbook.md", "---\npriority: [a]\n---"),
+            (".mdbook.fr.md", "---\ntitle: Manuel\n---"),
+            ("a.fr.md", "# Alpha"),
+            ("b.fr.md", "# Beta"));
+        RunCli(Path.Combine(dir.Root, "a.fr.md"), Path.Combine(dir.Root, "b.fr.md"),
+            Path.Combine(dir.Root, ".mdbook.md"), Path.Combine(dir.Root, ".mdbook.fr.md"),
+            "--single-file", Path.Combine(dir.Root, "book.{lang}.html"), "--bylang");
+
+        var fr = File.ReadAllText(Path.Combine(dir.Root, "book.fr.html"));
+        Assert.Contains("<title>Manuel</title>", fr);
+        Assert.DoesNotContain("<nav class=\"toc-band\">", fr);  // base priority NOT inherited
+    }
+
+    [Fact]
+    public void A_language_without_its_own_overlay_falls_back_to_the_neutral_base()
+    {
+        using var dir = new TempTree(
+            (".mdbook.md", "---\npriority: [a]\n---\n\nShared intro."),
+            (".mdbook.en.md", "---\ninherit: yes\ntitle: Handbook\n---"),
+            ("a.en.md", "# Alpha"),
+            ("a.de.md", "# Alpha DE"));
+        RunCli(Path.Combine(dir.Root, "a.en.md"), Path.Combine(dir.Root, "a.de.md"),
+            Path.Combine(dir.Root, ".mdbook.md"), Path.Combine(dir.Root, ".mdbook.en.md"),
+            "--single-file", Path.Combine(dir.Root, "book.{lang}.html"), "--bylang");
+
+        var de = File.ReadAllText(Path.Combine(dir.Root, "book.de.html"));
+        Assert.Contains("Shared intro.", de);                 // neutral base intro
+        Assert.Contains("<nav class=\"toc-band\">", de);       // neutral base priority
+    }
+
+    [Fact]
+    public void Multiple_language_manifests_without_bylang_warn_and_apply_none()
+    {
+        using var dir = new TempTree(
+            (".mdbook.en.md", "---\ntitle: Handbook\n---\n\nEN intro."),
+            (".mdbook.fr.md", "---\ntitle: Manuel\n---\n\nFR intro."),
+            ("a.en.md", "# Alpha"),
+            ("b.fr.md", "# Beta"));
+        var error = RunCliCaptureError(Path.Combine(dir.Root, "a.en.md"), Path.Combine(dir.Root, "b.fr.md"),
+            Path.Combine(dir.Root, ".mdbook.en.md"), Path.Combine(dir.Root, ".mdbook.fr.md"),
+            "--single-file", Path.Combine(dir.Root, "merged.html"));
+
+        Assert.Contains("none applies to a single merged book", error);
+        var html = File.ReadAllText(Path.Combine(dir.Root, "merged.html"));
+        Assert.DoesNotContain("EN intro.", html);
+        Assert.DoesNotContain("FR intro.", html);
+    }
+
+    [Fact]
+    public void An_inherit_overlay_without_a_neutral_base_warns()
+    {
+        using var dir = new TempTree(
+            (".mdbook.fr.md", "---\ninherit: yes\ntitle: Manuel\n---"),
+            ("a.fr.md", "# Alpha"));
+        var error = RunCliCaptureError(Path.Combine(dir.Root, "a.fr.md"), Path.Combine(dir.Root, ".mdbook.fr.md"),
+            "--single-file", Path.Combine(dir.Root, "book.{lang}.html"), "--bylang");
+
+        Assert.Contains("inherit", error);
+        Assert.Contains("<title>Manuel</title>", File.ReadAllText(Path.Combine(dir.Root, "book.fr.html")));
+    }
+
     private static int CountOccurrences(string haystack, string needle)
     {
         var count = 0;

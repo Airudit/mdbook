@@ -151,6 +151,12 @@ namespace Airudit.MdBook.Core
             return new FrontMatter(scalars, lists);
         }
 
+        /// <summary>Whether the front-matter declares <paramref name="key"/> at all (as a scalar or a sequence), even if its value is empty. Lets a caller tell "unset" from "set to a default-looking value" for layering.</summary>
+        public bool Contains(string key)
+        {
+            return this.scalars.ContainsKey(key) || this.lists.ContainsKey(key);
+        }
+
         /// <summary>The value of a scalar key, or null when the key is absent or its value is empty.</summary>
         public string? GetString(string key)
         {

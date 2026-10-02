@@ -147,16 +147,18 @@ public class CombineMarkdownToHtmlTask : ITask
     // outputPath. Shared by the whole-book path and the per-language --ByLang path (issue #22).
     private void CombineInto(PackageContext context, SimpleMarkdownToHtmlLayer layer, IReadOnlyList<SimpleMarkdownToHtmlLayerItem> items, string outputPath, string documentLang = null)
     {
-        // The book-metadata file (.mdbook[.lang].md) for this book, if one was supplied: source of
-        // the book title, language, optional introduction, and the ordering/TOC manifest.
-        var manifest = ResolveManifest(layer, documentLang);
+        // The manifest that applies to this book — the neutral .mdbook.md, a per-language overlay, or
+        // the two layered together when the overlay opts in with `inherit` (issue #30). Carries the
+        // book title, optional introduction, and the ordering/TOC settings.
+        var resolved = ResolveManifest(context, layer, documentLang);
+        var config = resolved?.Config;
 
         // Compute the page order the manifest dictates (issue #30): the `priority` shortlist first
         // (in listed order), then the remaining pages by ascending per-page `order` (a stable sort,
         // so unnumbered pages keep their existing sequence); `exclusive` ships only the priority
         // pages. With no manifest this is a stable `order` sort, and with no orders either it is the
         // pages exactly as assembled.
-        var pageOrder = OrderPages(items, manifest);
+        var pageOrder = OrderPages(items, config, resolved?.PathBaseDirectory);
         var ordered = pageOrder.Ordered;
 
         // Assign each page a stable, path-based anchor slug (e.g. "guide/intro.md" ->
@@ -209,7 +211,7 @@ public class CombineMarkdownToHtmlTask : ITask
         
         // --ByLang passes the book's language; otherwise take the .mdbook file's, then the pages' majority.
         var langName = documentLang
-            ?? manifest?.Lang?.Name
+            ?? resolved?.Lang?.Name
             ?? (langs.Count > 0 ? langs.OrderByDescending(x => x.Value).First().Key : "en-US");
         var lang = new CultureInfo(langName);
 
@@ -218,8 +220,7 @@ public class CombineMarkdownToHtmlTask : ITask
         // `order`. Both headings are language-localized and overridable from the manifest. `toc: no`
         // suppresses the whole generated table of contents (the author's intro is then the index).
         using var list = new StringWriter();
-        var config = manifest?.Manifest;
-        if (config?.Toc ?? true)
+        if (config?.EffectiveToc ?? true)
         {
             list.WriteLine("<article id=toc class=\"toc\">");
 
@@ -243,12 +244,13 @@ public class CombineMarkdownToHtmlTask : ITask
         // A .mdbook file's body becomes the book's introduction, placed before the table of contents
         // (book heading -> intro -> contents -> pages). Its local links resolve to in-file anchors.
         var intro = string.Empty;
-        if (manifest != null && !string.IsNullOrWhiteSpace(manifest.HtmlContents))
+        var introItem = resolved?.IntroItem;
+        if (introItem != null && !string.IsNullOrWhiteSpace(introItem.HtmlContents))
         {
             using var introWriter = new StringWriter();
             introWriter.WriteLine("<article id=\"intro\">");
             introWriter.WriteLine();
-            introWriter.WriteLine(RewriteLocalLinksToAnchors(manifest.HtmlContents?.ToString(), manifest.SourceFile.DirectoryName, slugBySource));
+            introWriter.WriteLine(RewriteLocalLinksToAnchors(introItem.HtmlContents?.ToString(), introItem.SourceFile.DirectoryName, slugBySource));
             introWriter.WriteLine();
             introWriter.WriteLine("</article>");
             introWriter.WriteLine();
@@ -262,7 +264,7 @@ public class CombineMarkdownToHtmlTask : ITask
         // - {{{Contents}}}   the markdown-converted HTML part
         // - {{{Lang}}}       the page's lang
         // - {{{Info}}}       a information string
-        var title = ResolveBookTitle(layer, manifest, ordered, outputPath);
+        var title = ResolveBookTitle(layer, resolved?.Title, ordered, outputPath);
         var pageContents = replacer.Replace(layer.Template, new MatchEvaluator(match =>
         {
             var key = match.Groups[1].Value;
@@ -444,17 +446,15 @@ public class CombineMarkdownToHtmlTask : ITask
     // remaining pages by ascending per-page `order` (a stable sort, so an unnumbered page — or, with
     // no manifest and no orders, every page — keeps the sequence in which it was assembled). With
     // `exclusive`, only the priority pages are returned.
-    private static (List<SimpleMarkdownToHtmlLayerItem> Ordered, List<SimpleMarkdownToHtmlLayerItem> Priority) OrderPages(IEnumerable<SimpleMarkdownToHtmlLayerItem> items, SimpleMarkdownToHtmlLayerItem? manifest)
+    private static (List<SimpleMarkdownToHtmlLayerItem> Ordered, List<SimpleMarkdownToHtmlLayerItem> Priority) OrderPages(IEnumerable<SimpleMarkdownToHtmlLayerItem> items, DocManifest? config, string? baseDirectory)
     {
         var pages = items.Where(item => item.IsMarkdown).ToList();
-        var config = manifest?.Manifest;
 
         var priority = new List<SimpleMarkdownToHtmlLayerItem>();
         var placed = new HashSet<SimpleMarkdownToHtmlLayerItem>();
-        var baseDirectory = manifest?.SourceFile.DirectoryName;
-        if (config != null && config.Priority.Count > 0 && baseDirectory != null)
+        if (config != null && config.EffectivePriority.Count > 0 && baseDirectory != null)
         {
-            foreach (var entry in config.Priority)
+            foreach (var entry in config.EffectivePriority)
             {
                 foreach (var page in pages)
                 {
@@ -473,7 +473,7 @@ public class CombineMarkdownToHtmlTask : ITask
             }
         }
 
-        if (config?.Exclusive == true)
+        if (config?.EffectiveExclusive == true)
         {
             return (new List<SimpleMarkdownToHtmlLayerItem>(priority), priority);
         }
@@ -488,33 +488,109 @@ public class CombineMarkdownToHtmlTask : ITask
         return (ordered, priority);
     }
 
-    // Picks the .mdbook file that applies to this book: the one whose language matches, else a
-    // language-neutral .mdbook.md, else (for a single merged book) the only one supplied.
-    private static SimpleMarkdownToHtmlLayerItem? ResolveManifest(SimpleMarkdownToHtmlLayer layer, string documentLang)
+    // The manifest resolved for one book: its effective config, title, introduction source item, the
+    // directory its priority entries resolve against, and the language it represents (issue #30).
+    private sealed class ResolvedManifest
+    {
+        public DocManifest Config { get; init; } = null!;
+
+        public string? Title { get; init; }
+
+        public SimpleMarkdownToHtmlLayerItem? IntroItem { get; init; }
+
+        public string? PathBaseDirectory { get; init; }
+
+        public CultureInfo? Lang { get; init; }
+    }
+
+    // Resolves the .mdbook manifest for a book (issue #30). Under --ByLang the book has a language:
+    // a matching .mdbook.<lang> overlay is used, layered over the neutral .mdbook.md base when the
+    // overlay opts in with `inherit: yes`; with no overlay the neutral base applies. A single merged
+    // book (no --ByLang) uses the neutral base, or the only manifest supplied. Cases where manifests
+    // were given but none can apply are warned about rather than silently ignored.
+    private static ResolvedManifest? ResolveManifest(PackageContext context, SimpleMarkdownToHtmlLayer layer, string documentLang)
     {
         if (layer.Manifests.Count == 0)
         {
             return null;
         }
 
+        var neutral = layer.Manifests.FirstOrDefault(candidate => candidate.Lang == null);
+
         if (documentLang != null)
         {
-            var match = layer.Manifests.FirstOrDefault(candidate =>
+            var overlay = layer.Manifests.FirstOrDefault(candidate =>
                 candidate.Lang != null
                 && string.Equals(candidate.Lang.TwoLetterISOLanguageName, documentLang, StringComparison.OrdinalIgnoreCase));
-            if (match != null)
+
+            if (overlay != null)
             {
-                return match;
+                if ((overlay.Manifest?.Inherit ?? false) && neutral != null)
+                {
+                    // Layer the overlay over the neutral base: structure from the base, localized bits
+                    // (title, intro, headings) from the overlay where set.
+                    return new ResolvedManifest
+                    {
+                        Config = DocManifest.Merge(neutral.Manifest!, overlay.Manifest!),
+                        Title = overlay.FrontMatterTitle ?? neutral.FrontMatterTitle,
+                        IntroItem = HasBody(overlay) ? overlay : (HasBody(neutral) ? neutral : null),
+                        PathBaseDirectory = overlay.SourceFile.DirectoryName,
+                        Lang = overlay.Lang,
+                    };
+                }
+
+                if ((overlay.Manifest?.Inherit ?? false) && neutral == null)
+                {
+                    Warn(context, "--Single-File: " + overlay.SourceFile.Name + " declares `inherit` but there is no neutral .mdbook.md to inherit from; using it standalone. ");
+                }
+
+                return Standalone(overlay);
             }
+
+            // No overlay for this language: fall back to the neutral base if there is one.
+            return neutral != null ? Standalone(neutral) : null;
         }
 
-        var neutral = layer.Manifests.FirstOrDefault(candidate => candidate.Lang == null);
+        // A single merged book (no --ByLang) has no one language: use the neutral base, else the only
+        // manifest supplied. Several language-specific files with no neutral base cannot be merged
+        // into one book — warn instead of silently dropping them.
         if (neutral != null)
         {
-            return neutral;
+            return Standalone(neutral);
         }
 
-        return documentLang == null && layer.Manifests.Count == 1 ? layer.Manifests[0] : null;
+        if (layer.Manifests.Count == 1)
+        {
+            return Standalone(layer.Manifests[0]);
+        }
+
+        Warn(context, "--Single-File: " + layer.Manifests.Count + " .mdbook.<lang> files were given but none applies to a single merged book. Use --ByLang, or add a neutral .mdbook.md. ");
+        return null;
+    }
+
+    // Builds a ResolvedManifest from one .mdbook file used on its own (no layering).
+    private static ResolvedManifest Standalone(SimpleMarkdownToHtmlLayerItem item)
+    {
+        return new ResolvedManifest
+        {
+            Config = item.Manifest ?? DocManifest.FromFrontMatter(FrontMatter.Empty),
+            Title = item.FrontMatterTitle,
+            IntroItem = HasBody(item) ? item : null,
+            PathBaseDirectory = item.SourceFile.DirectoryName,
+            Lang = item.Lang,
+        };
+    }
+
+    // Whether a .mdbook file has an introduction body (not just front-matter).
+    private static bool HasBody(SimpleMarkdownToHtmlLayerItem item)
+    {
+        return !string.IsNullOrWhiteSpace(item.HtmlContents);
+    }
+
+    // Emits a one-line warning to standard error, when a command-line interactor is present.
+    private static void Warn(PackageContext context, string message)
+    {
+        context.GetSingleLayer<CommandLineLayer>()?.ErrorOut?.WriteLine(message);
     }
 
     // The localized table-of-contents heading for a language, defaulting to English "Contents".
@@ -554,18 +630,18 @@ public class CombineMarkdownToHtmlTask : ITask
         list.WriteLine("</ul>");
     }
 
-    // The combined book's <title>: --Title, else the .mdbook file's title, else the first page's
+    // The combined book's <title>: --Title, else the manifest's title, else the first page's
     // front-matter title, else its first heading, else the output file name.
-    private static string ResolveBookTitle(SimpleMarkdownToHtmlLayer layer, SimpleMarkdownToHtmlLayerItem? manifest, IReadOnlyList<SimpleMarkdownToHtmlLayerItem> items, string outputPath)
+    private static string ResolveBookTitle(SimpleMarkdownToHtmlLayer layer, string? manifestTitle, IReadOnlyList<SimpleMarkdownToHtmlLayerItem> items, string outputPath)
     {
         if (!string.IsNullOrWhiteSpace(layer.Title))
         {
             return layer.Title;
         }
 
-        if (!string.IsNullOrWhiteSpace(manifest?.FrontMatterTitle))
+        if (!string.IsNullOrWhiteSpace(manifestTitle))
         {
-            return manifest.FrontMatterTitle;
+            return manifestTitle;
         }
 
         var firstPage = items.FirstOrDefault(item => item.IsMarkdown);
