@@ -79,14 +79,41 @@ The `.mdbook` file is **not a page**: it is never rendered in place, exported, o
 table of contents, and a `.mdbook.*.md` found by scanning a folder is ignored (name it
 explicitly on the command line to use it).
 
-Under `--ByLang`, each book uses the `.mdbook` file whose language matches, falling back to a
-language-neutral `.mdbook.md`. Give one per language for a localized cover:
+### Layering across languages
 
-```bash
-mdbook --Single-File book.html --ByLang .mdbook.*.md .
+Under `--ByLang` each language's book resolves its manifest like this: a matching
+`.mdbook.<lang>.md` overlay is used, **layered over the neutral `.mdbook.md` base when the overlay
+opts in with `inherit: yes`**; a language with no overlay of its own falls back to the neutral
+base. So the shared structure (`priority`, `exclude`, `toc`) lives once in `.mdbook.md`, and each
+`.mdbook.<lang>.md` need only carry what is localized — `title`, the introduction body,
+`priority-title` / `toc-title`:
+
+```markdown
+---
+inherit: yes          # layer over the neutral .mdbook.md; without it the overlay stands alone
+title: Manuel
+---
+
+Bienvenue dans le manuel.
 ```
 
-writes `book.en.html` and `book.fr.html`, each with its own title and introduction.
+When merging, a key set in the overlay wins; a key the overlay leaves unset is taken from the
+base. Without `inherit`, an overlay is standalone (it does **not** pick up the base's `priority`
+etc.). A language that has no overlay still gets the neutral base, so every language's book shares
+the same structure.
+
+Build every language in one call — the glob catches the neutral base **and** every overlay:
+
+```bash
+mdbook --Single-File book.{lang}.html --ByLang .mdbook*.md .
+```
+
+writes `book.en.html`, `book.fr.html`, … each with the shared order and its own localized cover.
+
+Without `--ByLang`, a single merged book uses the neutral `.mdbook.md` (or, if you give exactly
+one manifest, that one). Several `.mdbook.<lang>.md` files with no neutral base cannot describe a
+single merged book, so none is applied and a warning is shown — use `--ByLang`, or add a neutral
+`.mdbook.md`.
 
 Page order
 ----------------------------------------------------------------

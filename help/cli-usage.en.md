@@ -166,7 +166,8 @@ A file named `.mdbook.md` — or `.mdbook.<lang>.md` per language (`.mdbook.en.m
 `mdbook` reads its front-matter as the book's metadata and manifest: `title` and `lang`, an
 optional body rendered as the book's **introduction**, and a small manifest that orders and
 prunes the book — `priority` (a featured "Start here" shortlist), per-page `order`, `exclude`,
-`exclusive`, `toc`, and the `priority-title` / `toc-title` headings. The `.mdbook` file is never
+`exclusive`, `toc`, `inherit` (per-language layering), and the `priority-title` / `toc-title`
+headings. The `.mdbook` file is never
 rendered, exported, or listed as a page, and one found by scanning a folder is ignored (name it
 explicitly to use it).
 
@@ -236,16 +237,17 @@ Build one combined file per language from a multilingual folder:
 mdbook docs/ --Single-File docs.{lang}.html --ByLang
 ```
 
-Build one book per language, each with its own cover — title and introduction — from a
-`.mdbook.<lang>.md` file. The shell expands `.mdbook.*.md` to the per-language files and
-`.` supplies the pages, so a generic build script never has to list the files:
+Build one book per language, each with its own cover — title and introduction — from the
+`.mdbook` files. The glob `.mdbook*.md` catches the neutral base **and** every per-language
+overlay, and `.` supplies the pages, so a generic build script never has to list the files:
 
 ```bash
-mdbook --Single-File book.html --ByLang .mdbook.*.md .
+mdbook --Single-File book.{lang}.html --ByLang .mdbook*.md .
 ```
 
-Each file (`.mdbook.en.md`, `.mdbook.fr.md`) sets its book's title and intro; `--ByLang`
-writes `book.en.html` and `book.fr.html`. See [Single-file books](single-file.en.md).
+The neutral `.mdbook.md` holds the shared order/exclude; each `.mdbook.<lang>.md` adds the
+localized title and intro (with `inherit: yes` to layer over the base). `--ByLang` writes
+`book.en.html`, `book.fr.html`, … See [Single-file books](single-file.en.md).
 
 Render with the dark built-in template:
 
