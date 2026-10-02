@@ -232,7 +232,15 @@ produces `book.en.html`, `book.fr.html`, … each containing only that language'
 - The output path's `{lang}` placeholder is substituted per language. With no placeholder,
   `.{lang}` is inserted before the extension (`book.html` → `book.en.html`).
 - **Language-neutral pages** (no `.xx` suffix) are included in every language's book, so
-  shared front-matter and appendices appear in each.
+  shared front-matter and appendices appear in each. This is also a simple way to carry a
+  **not-yet-translated** page into every book: drop its language suffix and it appears (in its
+  one language) in all of them, keeping cross-page links intact rather than dangling.
+  - **Caveat — it's all-or-nothing per page.** Once you add a translated `guide.fr.md`
+    *alongside* a neutral `guide.md`, the French book contains **both** (the neutral page is in
+    every book, the translated one in the French book) — the page shows up twice. A page is
+    therefore either neutral-everywhere or translated-per-language, never a neutral base with a
+    per-language override. Automatic fallback that avoids this is
+    [issue #24](https://github.com/Airudit/mdbook/issues/24).
 - `--ByLang` requires `--Single-File`; if no page carries a detected language, nothing is
   written and an error is reported.
 
@@ -256,7 +264,8 @@ Known limitations
 
 - **No cross-language fallback.** Under `--ByLang`, a document that exists in only one
   language is absent from the other languages' books; there is no automatic fallback to
-  another language yet. Tracked in
+  another language yet (as a manual workaround, drop the page's language suffix so it is shared
+  across every book — see *One file per language*). Tracked in
   [issue #24](https://github.com/Airudit/mdbook/issues/24).
 - **Most of the `.mdbook` manifest affects the combined output only.** The book title,
   introduction, `priority`, per-page `order` and the table-of-contents keys apply to
